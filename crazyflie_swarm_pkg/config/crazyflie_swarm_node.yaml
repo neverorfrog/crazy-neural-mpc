@@ -1,0 +1,4 @@
+crazyflie_swarm_node:
+  ros__parameters:
+    uris: ['radio://0/80/2M/E7E7E7E7E7', 'radio://0/80/2M/E7E7E7E7E8']
+    poses_rate_publisher: 10.0

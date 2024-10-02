@@ -1,0 +1,3 @@
+crazyflie_dock_node:
+  ros__parameters:
+    rate: 2.0
