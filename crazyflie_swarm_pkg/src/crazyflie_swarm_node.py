@@ -1,13 +1,10 @@
 import time
-
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32MultiArray
-from std_msgs.msg import Bool
 from crazyflie_swarm_interfaces.msg import SwarmPoses, CrazyfliePose
 
-from script.crazyflie_swarm import CrazyflieSwarm
-
+from script.swarm import CrazyflieSwarm
 
 class CrazyflieSwarmNode(Node):
     def __init__(self):
@@ -32,30 +29,28 @@ class CrazyflieSwarmNode(Node):
         self.poses_publisher = self.create_publisher(SwarmPoses, '/crazyflie_swarm/poses', 10)
         self.poses_publisher_timer = self.create_timer(1/self.poses_rate_publisher, self.poses_callback)
         
-        self.link_state_publisher = self.create_publisher(Bool, '/crazyflie_swarm/link_state', 10)
-        self.link_state_publisher_timer = self.create_timer(1, self.link_state_callback)
-
+        #* CrazyflieSwarm
         try:
-            self.crazyflie_swarm = CrazyflieSwarm(self.uris)
-            self.crazyflie_swarm.connect()
+            self.crazyflie_swarm = CrazyflieSwarm(self.uris, ro_cache='./ro_cache', rw_cache='./rw_cache')
+            while not self.crazyflie_swarm.open_connections():
+                print('Connecting to Crazyflies ...')
+                time.sleep(0.5)
+            print('Connected to Crazyflies')
+
         except Exception as e:
             self.get_logger().error(f'Failed to connect to CrazyflieSwarm: {e}')
         
     def leds_callback(self, msg):    
         try:
             uri_0_intensity = int(msg.data[0])
-            uri_1_intensity = int(msg.data[1])
-            
-            sequence_led_0 = [uri_0_intensity]
-            sequence_led_1 = [uri_1_intensity]
-        
+            uri_1_intensity = int(msg.data[1])        
             sequence = {
-                self.uris[0]: [sequence_led_0],
-                self.uris[1]: [sequence_led_1],
+                self.uris[0]: uri_0_intensity,
+                self.uris[1]: uri_1_intensity
             } 
 
-            self.crazyflie_swarm.command_leds(sequence)
-            self.poses_callback()
+            self.crazyflie_swarm.set_leds(sequence) 
+            
         except Exception as e:
             self.get_logger().error(f'Error in leds_callback: {e}')
               
@@ -63,7 +58,7 @@ class CrazyflieSwarmNode(Node):
         try:
             positions = self.crazyflie_swarm.get_estimated_positions()
             euler_orientations = self.crazyflie_swarm.get_estimated_euler_orientations()
-            quaternion_orientations = self.crazyflie_swarm.get_estimated_quaternions_orientations()
+            quaternion_orientations = self.crazyflie_swarm.get_estimated_quaternion_orientations()
 
             swarm_poses_msg = SwarmPoses()
 
@@ -74,25 +69,24 @@ class CrazyflieSwarmNode(Node):
                 
                 pose_msg = CrazyfliePose()
                 pose_msg.uri = uri
-                pose_msg.position = position
-                pose_msg.euler_orientation = euler_orientation
-                pose_msg.quaternion_orientation = quaternion_orientation
-                
+                pose_msg.position[0] = position['x']
+                pose_msg.position[1] = position['y']
+                pose_msg.position[2] = position['z']
+                pose_msg.euler_orientation[0] = euler_orientation['roll']
+                pose_msg.euler_orientation[1] = euler_orientation['pitch']
+                pose_msg.euler_orientation[2] = euler_orientation['yaw']
+                pose_msg.quaternion_orientation[0] = quaternion_orientation['qx']
+                pose_msg.quaternion_orientation[1] = quaternion_orientation['qy']
+                pose_msg.quaternion_orientation[2] = quaternion_orientation['qz']
+                pose_msg.quaternion_orientation[3] = quaternion_orientation['qw']
                 swarm_poses_msg.poses.append(pose_msg)
             
             self.poses_publisher.publish(swarm_poses_msg)
+            
         except Exception as e:
             self.get_logger().error(f'Error in poses_callback: {e}')
         
-    def link_state_callback(self):
-        try:
-            link_state = self.crazyflie_swarm.swarm.are_links_open()
-            msg = Bool()
-            msg.data = link_state
-            self.link_state_publisher.publish(msg)
-        except Exception as e:
-            self.get_logger().error(f'Error in link_state_callback: {e}')
-                          
+                                  
 def main(args=None):
     rclpy.init(args=args)
     crazyflie_swarm_node = CrazyflieSwarmNode()

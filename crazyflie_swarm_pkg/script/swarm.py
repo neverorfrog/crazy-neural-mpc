@@ -1,361 +1,259 @@
-# -*- coding: utf-8 -*-
-#
-#     ||          ____  _ __
-#  +------+      / __ )(_) /_______________ _____  ___
-#  | 0xBC |     / __  / / __/ ___/ ___/ __ `/_  / / _ \
-#  +------+    / /_/ / / /_/ /__/ /  / /_/ / / /_/  __/
-#   ||  ||    /_____/_/\__/\___/_/   \__,_/ /___/\___/
-#
-#  Copyright (C) 2016 Bitcraze AB
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <https://www.gnu.org/licenses/>.
-import time
-from collections import namedtuple
-from threading import Thread
-
+from cflib.crtp import init_drivers
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
+from cflib.positioning.motion_commander import MotionCommander
+import time
+from threading import Event
 
-SwarmPosition = namedtuple('SwarmPosition', 'x y z')
-SwarmEulerOrientation = namedtuple('SwarmOrientation', 'roll pitch yaw')
-SwarmQuaternionOrientation = namedtuple('SwarmOrientation', 'qx qy qz qw')
-
-
-class _Factory:
-    """
-    Default Crazyflie factory class.
-    """
-
-    def construct(self, uri):
-        return SyncCrazyflie(uri)
-
-
-class CachedCfFactory:
-    """
-    Factory class that creates Crazyflie instances with TOC caching
-    to reduce connection time.
-    """
-
-    def __init__(self, ro_cache=None, rw_cache=None):
-        self.ro_cache = ro_cache
-        self.rw_cache = rw_cache
-
-    def construct(self, uri):
-        cf = Crazyflie(ro_cache=self.ro_cache, rw_cache=self.rw_cache)
-        return SyncCrazyflie(uri, cf=cf)
-
-
-class Swarm:
-    """
-    Runs a swarm of Crazyflies. It implements a functional-ish style of
-    sequential or parallel actions on all individuals of the swarm.
-
-    When the swarm is connected, a link is opened to each Crazyflie through
-    SyncCrazyflie instances. The instances are maintained by the class and are
-    passed in as the first argument in swarm wide actions.
-    """
-
-    def __init__(self, uris, factory=_Factory()):
-        """
-        Constructs a Swarm instance and instances used to connect to the
-        Crazyflies
-
-        :param uris: A set of uris to use when connecting to the Crazyflies in
-        the swarm
-        :param factory: A factory class used to create the instances that are
-         used to open links to the Crazyflies. Mainly used for unit testing.
-        """
-        self._cfs = {}
-        self._is_open = False
+class CrazyflieRobot:
+    def __init__(self, uri, ro_cache=None, rw_cache=None):
+        self.uri = uri
+        self.cf = Crazyflie(ro_cache=ro_cache, rw_cache=rw_cache)
+        self.scf = SyncCrazyflie(uri, cf=self.cf)      
         
+        self.default_height = 0.2
+        self.default_velocity = 0.1
+        self.motion_commander = MotionCommander(self.scf, self.default_height)
+          
+        self.__timeout = 10 # seconds  
+        self.__connection_opened = False
+        self.__flow_deck_attached = False
+        self.flow_deck_attached_event = Event()
+        self.flow_deck_attached_event.clear()
         
-        self._positions = dict()
-        self._euler_orientations = dict()
-        self._quaternion_orientations = dict()
-
-        for uri in uris:
-            self._cfs[uri] = factory.construct(uri)
-
-    def __enter__(self):
-        self.open_links()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close_links()
+              
+    #* Initialization
+    def initialize(self):
+        start_initialization = time.time()
         
-    def open_links(self):
-        """
-        Open links to all individuals in the swarm
-        """
-        if self._is_open:
-            raise Exception('Already opened')
+        self.open_connection()
+        self.scf.cf.param.add_update_callback(group="deck", name="bcFlow2", cb=self.flow_deck_attached_callback)
+        
+        while not self.__connection_opened or \
+              not self.__flow_deck_attached:
+            
+            if time.time() - start_initialization > self.__timeout:
+                print(f'Initialization timeout for {self.uri}')
+                self.close_connection()
+                return False
+            
+            time.sleep(0.1)
+        
+        print(f'Crazyflie {self.uri} initialized')
+        return True
+        
+    # Flow deck management
+    def flow_deck_attached_callback(self, _, value_str):
+        if int(value_str):
+            self.flow_deck_attached_event.set()
+            self.__flow_deck_attached = True
+            print(f'Flow deck attached to {self.uri}')
+        else:
+            print(f'Flow deck is not attached to {self.uri}')
 
+    # Connection management
+    def open_connection(self):
+        if self.__connection_opened: raise Exception('Connection already opened')
         try:
-            self.parallel_safe(lambda scf: scf.open_link())
-            self._is_open = True
+            self.scf.open_link()
+            self.__connection_opened = True 
         except Exception as e:
-            self.close_links()
+            self.close_connection()
             raise e
-
-    def close_links(self):
-        """
-        Close all open links
-        """
-        for uri, cf in self._cfs.items():
-            cf.close_link()
-
-        self._is_open = False
-
-    def are_links_open(self):
-        """
-        Returns True if the links are open, otherwise False
-        """
-        return self._is_open
-
-
-    def __get_estimated_position(self, scf):
-        log_config = LogConfig(name='stateEstimate', period_in_ms=10)
+       
+    def close_connection(self):
+        self.scf.close_link()
+        self.__connection_opened = False
+        
+    #* Commands
+    def take_off(self, absolute_height=None, velocity=None):
+        if not self.__connection_opened: raise Exception('Connection not opened')
+        if not self.__flow_deck_attached: raise Exception('Flow deck not attached')
+        
+        height = self.default_height if absolute_height is None else absolute_height
+        velocity = self.default_velocity if velocity is None else velocity
+        self.motion_commander.take_off(height, velocity)
+        
+    def land(self, velocity=None):        
+        velocity = self.default_velocity if velocity is None else velocity
+        self.motion_commander.land(velocity)
+        
+    def hover(self):
+        self.motion_commander.stop()
+                            
+    #* Getters    
+    def get_sync_crazyflie(self):
+        return self.scf
+    
+    def get_estimated_position(self):
+        log_config = LogConfig(name='State', period_in_ms=10)
         log_config.add_variable('stateEstimate.x', 'float')
         log_config.add_variable('stateEstimate.y', 'float')
         log_config.add_variable('stateEstimate.z', 'float')
-
-        with SyncLogger(scf, log_config) as logger:
+        position = {'x': 0, 'y': 0, 'z': 0}
+        with SyncLogger(self.scf, log_config) as logger:
             for entry in logger:
-                x = entry[1]['stateEstimate.x']
-                y = entry[1]['stateEstimate.y']
-                z = entry[1]['stateEstimate.z']
-                self._positions[scf.cf.link_uri] = SwarmPosition(x, y, z)
+                position['x'] = entry[1]['stateEstimate.x']
+                position['y'] = entry[1]['stateEstimate.y']
+                position['z'] = entry[1]['stateEstimate.z']
                 break
+        return position
     
-    def get_estimated_positions(self):
-        """
-        Return a `dict`, keyed by URI and with the SwarmPosition namedtuples as
-        value, with the estimated (x, y, z) of each Crazyflie in the swarm.
-        """
-        self.parallel_safe(self.__get_estimated_position)
-        return self._positions
-
-    def __get_estimated_euler_orientation(self, scf):
-        log_config = LogConfig(name='stateEstimate', period_in_ms=10)
+    def get_estimated_euler_orientation(self):
+        log_config = LogConfig(name='State', period_in_ms=10)
         log_config.add_variable('stateEstimate.roll', 'float')
         log_config.add_variable('stateEstimate.pitch', 'float')
         log_config.add_variable('stateEstimate.yaw', 'float')
-        
-        with SyncLogger(scf, log_config) as logger:
+        orientation = {'roll': 0, 'pitch': 0, 'yaw': 0}
+        with SyncLogger(self.scf, log_config) as logger:
             for entry in logger:
-                roll = entry[1]['stateEstimate.roll']
-                pitch = entry[1]['stateEstimate.pitch']
-                yaw = entry[1]['stateEstimate.yaw']
-                self._euler_orientations[scf.cf.link_uri] = SwarmEulerOrientation(roll, pitch, yaw)
+                orientation['roll'] = entry[1]['stateEstimate.roll']
+                orientation['pitch'] = entry[1]['stateEstimate.pitch']
+                orientation['yaw'] = entry[1]['stateEstimate.yaw']
                 break
-
-    def get_estimated_euler_orientations(self):
-        """
-        Return a `dict`, keyed by URI and with the SwarmOrientation namedtuples
-        as value, with the estimated (roll, pitch, yaw) of each Crazyflie in the
-        swarm.
-        """
-        self.parallel_safe(self.__get_estimated_euler_orientation)
-        return self._euler_orientations
+        return orientation
     
-    def __get_estimated_quaternion_orientation(self, scf):
-        log_config = LogConfig(name='stateEstimate', period_in_ms=10)
+    def get_estimated_quaternion_orientation(self):
+        log_config = LogConfig(name='State', period_in_ms=10)
         log_config.add_variable('stateEstimate.qx', 'float')
         log_config.add_variable('stateEstimate.qy', 'float')
         log_config.add_variable('stateEstimate.qz', 'float')
         log_config.add_variable('stateEstimate.qw', 'float')
-        
-        with SyncLogger(scf, log_config) as logger:
+        orientation = {'qx': 0, 'qy': 0, 'qz': 0, 'qw': 0}
+        with SyncLogger(self.scf, log_config) as logger:
             for entry in logger:
-                qx = entry[1]['stateEstimate.qx']
-                qy = entry[1]['stateEstimate.qy']
-                qz = entry[1]['stateEstimate.qz']
-                qw = entry[1]['stateEstimate.qw']
-                self._quaternion_orientations[scf.cf.link_uri] = SwarmQuaternionOrientation(qx, qy, qz, qw)
+                orientation['qx'] = entry[1]['stateEstimate.qx']
+                orientation['qy'] = entry[1]['stateEstimate.qy']
+                orientation['qz'] = entry[1]['stateEstimate.qz']
+                orientation['qw'] = entry[1]['stateEstimate.qw']
                 break
+        return orientation
+    
+    def get_estimated_linear_velocity(self):
+        log_config = LogConfig(name='Velocity', period_in_ms=10)
+        log_config.add_variable('stateEstimate.vx', 'float')
+        log_config.add_variable('stateEstimate.vy', 'float')
+        log_config.add_variable('stateEstimate.vz', 'float')
+        linear_velocity = {'vx': 0, 'vy': 0, 'vz': 0}
+        with SyncLogger(self.scf, log_config) as logger:
+            for entry in logger:
+                linear_velocity['vx'] = entry[1]['stateEstimate.vx']
+                linear_velocity['vy'] = entry[1]['stateEstimate.vy']
+                linear_velocity['vz'] = entry[1]['stateEstimate.vz']
+                break
+        return linear_velocity
+    
+    def get_estimated_acceleration(self):
+        log_config = LogConfig(name='Acceleration', period_in_ms=10)   
+        log_config.add_variable('stateEstimate.ax', 'float')
+        log_config.add_variable('stateEstimate.ay', 'float')
+        log_config.add_variable('stateEstimate.az', 'float')
+        acceleration = {'ax': 0, 'ay': 0, 'az': 0}
+        with SyncLogger(self.scf, log_config) as logger:
+            for entry in logger:
+                acceleration['ax'] = entry[1]['stateEstimate.ax']
+                acceleration['ay'] = entry[1]['stateEstimate.ay']
+                acceleration['az'] = entry[1]['stateEstimate.az']
+                break
+        return acceleration
+    
+        
+    #* Setters
+    def set_led(self, intensity):
+        self.cf.param.set_value('led.bitmask', intensity)
+    
+    
+    
+class CrazyflieSwarm:
+    def __init__(self, uris, ro_cache=None, rw_cache=None):
+        init_drivers()
+        self.uris = uris    
+        self.__crazyflie_robots = {}
+        
+        self.__timeout = 10 # seconds
+          
+        for uri in uris:
+            crazyflie_robot = CrazyflieRobot(uri, ro_cache=ro_cache, rw_cache=rw_cache)
+            self.__crazyflie_robots[uri] = crazyflie_robot 
+        
+    #* Connection management
+    def open_connections(self):
+        start_connections = time.time()
+        for uri, crazyflie_robot in self.__crazyflie_robots.items():
+            while not crazyflie_robot.initialize():
+                print(f'Waiting for {uri} to initialize ...')
+                time.sleep(0.5)
+                if time.time() - start_connections > self.__timeout:
+                    print(f'Initialization timeout')
+                    self.close_connections()
+                    return False
+        return True
+    
+    def close_connections(self):
+        for uri, crazyflie_robot in self.__crazyflie_robots.items():
+            crazyflie_robot.close_connection()
+        
+    #* Commands
+    def take_off(self, dict):
+        print("Taking off ...")
+        for uri, crazyflie_robot in self.__crazyflie_robots.items():
+            print(f" - taking off {uri}")   
+            absolute_height = dict[uri]['absolute_height']
+            velocity = dict[uri]['velocity']
+            crazyflie_robot.take_off(absolute_height, velocity)
             
-    def get_estimated_quaternions_orientations(self):
-        """
-        Return a `dict`, keyed by URI and with the SwarmOrientation namedtuples
-        as value, with the estimated (q0, q1, q2, q3) of each Crazyflie in the
-        swarm.
-        """
-        self.parallel_safe(self.__get_estimated_quaternion_orientation)
-        return self._quaternion_orientations
-
-
-
-    def __wait_for_position_estimator(self, scf):
-        log_config = LogConfig(name='Kalman Variance', period_in_ms=500)
-        log_config.add_variable('kalman.varPX', 'float')
-        log_config.add_variable('kalman.varPY', 'float')
-        log_config.add_variable('kalman.varPZ', 'float')
-
-        var_y_history = [1000] * 10
-        var_x_history = [1000] * 10
-        var_z_history = [1000] * 10
-
-        threshold = 0.001
-
-        with SyncLogger(scf, log_config) as logger:
-            for log_entry in logger:
-                data = log_entry[1]
-
-                var_x_history.append(data['kalman.varPX'])
-                var_x_history.pop(0)
-                var_y_history.append(data['kalman.varPY'])
-                var_y_history.pop(0)
-                var_z_history.append(data['kalman.varPZ'])
-                var_z_history.pop(0)
-
-                min_x = min(var_x_history)
-                max_x = max(var_x_history)
-                min_y = min(var_y_history)
-                max_y = max(var_y_history)
-                min_z = min(var_z_history)
-                max_z = max(var_z_history)
-
-                if (max_x - min_x) < threshold and (
-                        max_y - min_y) < threshold and (
-                        max_z - min_z) < threshold:
-                    break
-
-    def __reset_estimator(self, scf):
-        cf = scf.cf
-        cf.param.set_value('kalman.resetEstimation', '1')
-        time.sleep(0.1)
-        cf.param.set_value('kalman.resetEstimation', '0')
-        self.__wait_for_position_estimator(scf)
-
-    def reset_estimators(self):
-        """
-        Reset estimator on all members of the swarm and wait for a stable
-        positions. Blocks until position estimators finds a position.
-        """
-        self.parallel_safe(self.__reset_estimator)
-
-    def sequential(self, func, args_dict=None):
-        """
-        Execute a function for all Crazyflies in the swarm, in sequence.
-
-        The first argument of the function that is passed in will be a
-        SyncCrazyflie instance connected to the Crazyflie to operate on.
-        A list of optional parameters (per Crazyflie) may follow defined by
-        the `args_dict`. The dictionary is keyed on URI and has a list of
-        parameters as value.
-
-        Example:
-        ```python
-        def my_function(scf, optional_param0, optional_param1)
-            ...
-
-        args_dict = {
-            URI0: [optional_param0_cf0, optional_param1_cf0],
-            URI1: [optional_param0_cf1, optional_param1_cf1],
-            ...
-        }
-
-
-        swarm.sequential(my_function, args_dict)
-        ```
-
-        :param func: The function to execute
-        :param args_dict: Parameters to pass to the function
-        """
-        for uri, cf in self._cfs.items():
-            args = self._process_args_dict(cf, uri, args_dict)
-            func(*args)
-
-    def parallel(self, func, args_dict=None):
-        """
-        Execute a function for all Crazyflies in the swarm, in parallel.
-        One thread per Crazyflie is started to execute the function. The
-        threads are joined at the end. Exceptions raised by the threads are
-        ignored.
-
-        For a more detailed description of the arguments, see `sequential()`
-
-        :param func: The function to execute
-        :param args_dict: Parameters to pass to the function
-        """
-        try:
-            self.parallel_safe(func, args_dict)
-        except Exception:
-            pass
-
-    def parallel_safe(self, func, args_dict=None):
-        """
-        Execute a function for all Crazyflies in the swarm, in parallel.
-        One thread per Crazyflie is started to execute the function. The
-        threads are joined at the end and if one or more of the threads raised
-        an exception this function will also raise an exception.
-
-        For a more detailed description of the arguments, see `sequential()`
-
-        :param func: The function to execute
-        :param args_dict: Parameters to pass to the function
-        """
-        threads = []
-        reporter = self.Reporter()
-
-        for uri, scf in self._cfs.items():
-            args = [func, reporter] + \
-                self._process_args_dict(scf, uri, args_dict)
-
-            thread = Thread(target=self._thread_function_wrapper, args=args)
-            threads.append(thread)
-            thread.start()
-
-        for thread in threads:
-            thread.join()
-
-        if reporter.is_error_reported():
-            first_error = reporter.errors[0]
-            raise Exception('One or more threads raised an exception when '
-                            'executing parallel task') from first_error
-
-    def _thread_function_wrapper(self, *args):
-        reporter = None
-        try:
-            func = args[0]
-            reporter = args[1]
-            func(*args[2:])
-        except Exception as e:
-            if reporter:
-                reporter.report_error(e)
-
-    def _process_args_dict(self, scf, uri, args_dict):
-        args = [scf]
-
-        if args_dict:
-            args += args_dict[uri]
-
-        return args
-
-    class Reporter:
-        def __init__(self):
-            self.error_reported = False
-            self._errors = []
-
-        @property
-        def errors(self):
-            return self._errors
-
-        def report_error(self, e):
-            self.error_reported = True
-            self._errors.append(e)
-
-        def is_error_reported(self):
-            return self.error_reported
+    def land(self, dict):
+        print("Landing ...")
+        for uri, crazyflie_robot in self.__crazyflie_robots.items():
+            print(f" - landing {uri}")
+            velocity = dict[uri]['velocity']
+            crazyflie_robot.land(velocity)
+            
+    def hover(self):
+        print("Hovering ...")
+        for uri, crazyflie_robot in self.__crazyflie_robots.items():
+            print(f" - hovering {uri}")
+            crazyflie_robot.hover()
+    
+    #* Getters      
+    def get_estimated_positions(self):  
+        estimated_positions = {uri: {'x': 0, 'y': 0, 'z': 0} for uri in self.uris}
+        for uri, crazyflie_robot in self.__crazyflie_robots.items():
+            position = crazyflie_robot.get_estimated_position()
+            estimated_positions[uri] = position
+        return estimated_positions
+    
+    def get_estimated_euler_orientations(self):
+        estimated_euler_orientations = {uri: {'roll': 0, 'pitch': 0, 'yaw': 0} for uri in self.uris}
+        for uri, crazyflie_robot in self.__crazyflie_robots.items():
+            orientation = crazyflie_robot.get_estimated_euler_orientation()
+            estimated_euler_orientations[uri] = orientation
+        return estimated_euler_orientations
+    
+    def get_estimated_quaternion_orientations(self):
+        estimated_quaternion_orientations = {uri: {'qx': 0, 'qy': 0, 'qz': 0, 'qw': 0} for uri in self.uris}
+        for uri, crazyflie_robot in self.__crazyflie_robots.items():
+            orientation = crazyflie_robot.get_estimated_quaternion_orientation()
+            estimated_quaternion_orientations[uri] = orientation
+        return estimated_quaternion_orientations
+    
+    def get_estimated_linear_velocities(self):
+        estimated_linear_velocities = {uri: {'vx': 0, 'vy': 0, 'vz': 0} for uri in self.uris}
+        for uri, crazyflie_robot in self.__crazyflie_robots.items():
+            velocity = crazyflie_robot.get_estimated_linear_velocity()
+            estimated_linear_velocities[uri] = velocity
+        return estimated_linear_velocities
+    
+    def get_estimated_accelerations(self):
+        estimated_accelerations = {uri: {'ax': 0, 'ay': 0, 'az': 0} for uri in self.uris}
+        for uri, crazyflie_robot in self.__crazyflie_robots.items():
+            acceleration = crazyflie_robot.get_estimated_acceleration()
+            estimated_accelerations[uri] = acceleration
+        return estimated_accelerations
+    
+    #* Setters
+    def set_leds(self, dict):
+        for uri, intensity in dict.items():
+            self.__crazyflie_robots[uri].set_led(intensity)
