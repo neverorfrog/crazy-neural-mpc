@@ -22,7 +22,6 @@ class CrazyflieRobot:
         self.__flow_deck_attached = False
         self.flow_deck_attached_event = Event()
         self.flow_deck_attached_event.clear()
-        
               
     #* Initialization
     def initialize(self):
@@ -67,21 +66,68 @@ class CrazyflieRobot:
         self.scf.close_link()
         self.__connection_opened = False
         
+    def reset_estimator(self):
+        self.cf.param.set_value('kalman.resetEstimation', '1')
+        time.sleep(0.1)
+        self.cf.param.set_value('kalman.resetEstimation', '0')
+        
+        log_config = LogConfig(name='Kalman Variance', period_in_ms=500)
+        log_config.add_variable('kalman.varPX', 'float')
+        log_config.add_variable('kalman.varPY', 'float')
+        log_config.add_variable('kalman.varPZ', 'float')
+
+        var_y_history = [1000] * 10
+        var_x_history = [1000] * 10
+        var_z_history = [1000] * 10
+
+        threshold = 0.001
+
+        with SyncLogger(self.scf, log_config) as logger:
+            for log_entry in logger:
+                data = log_entry[1]
+
+                var_x_history.append(data['kalman.varPX'])
+                var_x_history.pop(0)
+                var_y_history.append(data['kalman.varPY'])
+                var_y_history.pop(0)
+                var_z_history.append(data['kalman.varPZ'])
+                var_z_history.pop(0)
+
+                min_x = min(var_x_history)
+                max_x = max(var_x_history)
+                min_y = min(var_y_history)
+                max_y = max(var_y_history)
+                min_z = min(var_z_history)
+                max_z = max(var_z_history)
+
+                if (max_x - min_x) < threshold and (max_y - min_y) < threshold and (max_z - min_z) < threshold:
+                    break
+        
     #* Commands
     def take_off(self, absolute_height=None, velocity=None):
         if not self.__connection_opened: raise Exception('Connection not opened')
         if not self.__flow_deck_attached: raise Exception('Flow deck not attached')
         
-        height = self.default_height if absolute_height is None else absolute_height
-        velocity = self.default_velocity if velocity is None else velocity
-        self.motion_commander.take_off(height, velocity)
-        
+        # height = self.default_height if absolute_height is None else absolute_height
+        # velocity = self.default_velocity if velocity is None else velocity
+        # self.motion_commander.take_off(height, velocity)
+        self.cf.high_level_commander.takeoff(0.1, 3)
+
     def land(self, velocity=None):        
-        velocity = self.default_velocity if velocity is None else velocity
-        self.motion_commander.land(velocity)
+        # velocity = self.default_velocity if velocity is None else velocity
+        # self.motion_commander.land(velocity)
+        self.cf.high_level_commander.land(0.0, 3)
         
     def hover(self):
         self.motion_commander.stop()
+        
+    def forward(self, distance, velocity=None):
+        velocity = self.default_velocity if velocity is None else velocity
+        self.motion_commander.forward(distance, velocity)
+        
+    def start_forward(self, velocity=None):
+        velocity = self.default_velocity if velocity is None else velocity
+        self.motion_commander.start_linear_motion_x(velocity)
                             
     #* Getters    
     def get_uri(self):

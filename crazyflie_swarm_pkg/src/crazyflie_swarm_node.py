@@ -5,7 +5,7 @@ from rclpy.node import Node
 from std_msgs.msg import Float32
 
 from crazyflie_swarm_interfaces.msg import CrazyflieState
-from crazyflie_swarm_interfaces.srv import TakeOff
+from crazyflie_swarm_interfaces.srv import TakeOff, Land
 
 import cflib.crtp as crtp
 from script.swarm import CrazyflieRobot
@@ -49,7 +49,7 @@ class CrazyflieSwarmNode(Node):
                                                             f'/{name}/led', 
                                                             lambda msg, name=name: self.led_callback(msg, name), 
                                                             10)
-        
+              
     #* Publishers
     self.state_publishers = {}
     for name, params in self.crazyflie_params.items():
@@ -59,10 +59,10 @@ class CrazyflieSwarmNode(Node):
       self.create_timer(1/state_publisher_rate, lambda name=name, publisher=publisher: self.state_callback(name, publisher))
       
     #* Services
-    self.take_off_services = {}
-    for name, _ in self.crazyflie_params.items():
-      self.take_off_services[name] = self.create_service(TakeOff, f'/{name}/take_off', lambda request, response, name=name: self.take_off_callback(request, response, name))
+    self.take_off_service = self.create_service(TakeOff, '/take_off', self.take_off_service_callback)
+    self.land_service = self.create_service(Land, '/land', self.land_service_callback)
     
+
     #* CrazyflieSwarm
     crtp.init_drivers()
     self.crazyflie_swarm = {}        
@@ -70,10 +70,13 @@ class CrazyflieSwarmNode(Node):
       uri = params['uri']
       crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache')
       while not crazyflie_robot.initialize():
-        print(f'Connecting to Crazyflie {name} ...')
         time.sleep(0.5)
-      print(f'Connected to Crazyflie {name}')
       self.crazyflie_swarm[name] = crazyflie_robot
+    
+      self.get_logger().info(f'Resetting estimators for robot {uri} ...')
+      crazyflie_robot.reset_estimator() 
+      self.get_logger().info(f'... done!')
+      
   
   def led_callback(self, msg, name):    
     self.get_logger().info(f'Received message: {msg.data} for robot: {name}')
@@ -104,14 +107,16 @@ class CrazyflieSwarmNode(Node):
         
     except Exception as e:
       self.get_logger().error(f'Error in poses_callback: {e}')
+               
                 
-  def take_off_callback(self, request, response, name):
+  def take_off_service_callback(self, request, response):
+    self.get_logger().info(f'Take off')
     try:
       height = request.height
       velocity = request.velocity 
       
-      crazyflie_robot = self.crazyflie_swarm[name]
-      crazyflie_robot.take_off(height, velocity)
+      for name, crazyflie_robot in self.crazyflie_swarm.items():
+        crazyflie_robot.take_off(height, velocity)
         
       response.success = True
 
@@ -120,6 +125,23 @@ class CrazyflieSwarmNode(Node):
       response.success = False
       
     return response
+  
+  
+  def land_service_callback(self, request, response):
+    self.get_logger().info(f'Land')
+    try:
+      velocity = request.velocity
+
+      for name, crazyflie_robot in self.crazyflie_swarm.items():
+        crazyflie_robot.land(velocity)
+
+      response.success = True
+
+    except Exception as e:
+      self.get_logger().error(f'Error in land_callback: {e}')
+      response.success = False
+    
+    return response
                                               
 def main(args=None):
   rclpy.init(args=args)
@@ -127,7 +149,9 @@ def main(args=None):
   try:
     rclpy.spin(crazyflie_swarm_node)
   except KeyboardInterrupt:
+    crazyflie_swarm_node.land_service_callback()
     pass
+    
   except Exception as e:
     crazyflie_swarm_node.get_logger().error(f'Error in main loop: {e}')
   finally:
