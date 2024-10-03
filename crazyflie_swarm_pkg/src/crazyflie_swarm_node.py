@@ -1,10 +1,11 @@
 import time
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float32
 from crazyflie_swarm_interfaces.msg import SwarmPoses, CrazyfliePose
 
-from script.swarm import CrazyflieSwarm
+import cflib.crtp as crtp
+from script.swarm import CrazyflieRobot
 
 class CrazyflieSwarmNode(Node):
     def __init__(self):
@@ -12,81 +13,46 @@ class CrazyflieSwarmNode(Node):
         self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
         #* Parameters
-        self.declare_parameter('uris', ['']) 
-        self.declare_parameter('poses_rate_publisher', 10.0)
+        self.declare_parameter('robot_1', ['crazyflie_robot_1', 'radio://0/80/2M/E7E7E7E7E7'])
+        self.declare_parameter('robot_2', ['crazyflie_robot_2', 'radio://0/80/2M/E7E7E7E7E7'])
         
-        self.uris = self.get_parameter('uris').get_parameter_value().string_array_value
-        self.poses_rate_publisher = self.get_parameter('poses_rate_publisher').get_parameter_value().double_value
-        
-        self.get_logger().info(f'CrazyflieSwarmNode started with parameters:')
-        self.get_logger().info(f' - uris: {self.uris}')
-        self.get_logger().info(f' - poses_rate_publisher: {self.poses_rate_publisher}')
+        self.robot_1 = self.get_parameter('robot_1').get_parameter_value().string_array_value
+        self.robot_2 = self.get_parameter('robot_2').get_parameter_value().string_array_value
+            
+        self.get_logger().info(f'CrazyflieDockNode started with parameters:')
+        self.get_logger().info(f'- robots: ')
+        self.get_logger().info(f'  - robot_1: {self.robot_1}')
+        self.get_logger().info(f'  - robot_2: {self.robot_2}')
+ 
+        self.robots = {
+            self.robot_1[0]: self.robot_1[1],
+            self.robot_2[0]: self.robot_2[1]
+        }
         
         #* Subscriptions
-        self.leds_subscriber = self.create_subscription(Float32MultiArray, '/crazyflie_swarm/leds', self.leds_callback, 10)
-        
-        #* Publishers
-        self.poses_publisher = self.create_publisher(SwarmPoses, '/crazyflie_swarm/poses', 10)
-        self.poses_publisher_timer = self.create_timer(1/self.poses_rate_publisher, self.poses_callback)
+        self.led_subscribers = {}
+        for name, uri in self.robots.items():
+            self.led_subscribers[name] = self.create_subscription(Float32, 
+                                                                  f'/crazyflie_robot/{name}/led', 
+                                                                  lambda msg, name=name: self.led_callback(msg, name), 
+                                                                  10)
         
         #* CrazyflieSwarm
-        try:
-            self.crazyflie_swarm = CrazyflieSwarm(self.uris, ro_cache='./ro_cache', rw_cache='./rw_cache')
-            while not self.crazyflie_swarm.open_connections():
-                print('Connecting to Crazyflies ...')
+        crtp.init_drivers()
+        self.crazyflie_swarm = {}        
+        for name, uri in self.robots.items():
+            crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache')
+            while not crazyflie_robot.initialize():
+                print(f'Connecting to Crazyflie {name} ...')
                 time.sleep(0.5)
-            print('Connected to Crazyflies')
-
-        except Exception as e:
-            self.get_logger().error(f'Failed to connect to CrazyflieSwarm: {e}')
+            print(f'Connected to Crazyflie {name}')
+            self.crazyflie_swarm[name] = crazyflie_robot
         
-    def leds_callback(self, msg):    
-        try:
-            uri_0_intensity = int(msg.data[0])
-            uri_1_intensity = int(msg.data[1])        
-            sequence = {
-                self.uris[0]: uri_0_intensity,
-                self.uris[1]: uri_1_intensity
-            } 
-
-            self.crazyflie_swarm.set_leds(sequence) 
-            
-        except Exception as e:
-            self.get_logger().error(f'Error in leds_callback: {e}')
+    def led_callback(self, msg, name):    
+        self.get_logger().info(f'Received message: {msg.data} for robot: {name}')
+        self.crazyflie_swarm[name].set_led(int(msg.data))
               
-    def poses_callback(self):        
-        try:
-            positions = self.crazyflie_swarm.get_estimated_positions()
-            euler_orientations = self.crazyflie_swarm.get_estimated_euler_orientations()
-            quaternion_orientations = self.crazyflie_swarm.get_estimated_quaternion_orientations()
-
-            swarm_poses_msg = SwarmPoses()
-
-            for uri in self.uris:
-                position = positions[uri]
-                euler_orientation = euler_orientations[uri]
-                quaternion_orientation = quaternion_orientations[uri]
-                
-                pose_msg = CrazyfliePose()
-                pose_msg.uri = uri
-                pose_msg.position[0] = position['x']
-                pose_msg.position[1] = position['y']
-                pose_msg.position[2] = position['z']
-                pose_msg.euler_orientation[0] = euler_orientation['roll']
-                pose_msg.euler_orientation[1] = euler_orientation['pitch']
-                pose_msg.euler_orientation[2] = euler_orientation['yaw']
-                pose_msg.quaternion_orientation[0] = quaternion_orientation['qx']
-                pose_msg.quaternion_orientation[1] = quaternion_orientation['qy']
-                pose_msg.quaternion_orientation[2] = quaternion_orientation['qz']
-                pose_msg.quaternion_orientation[3] = quaternion_orientation['qw']
-                swarm_poses_msg.poses.append(pose_msg)
-            
-            self.poses_publisher.publish(swarm_poses_msg)
-            
-        except Exception as e:
-            self.get_logger().error(f'Error in poses_callback: {e}')
-        
-                                  
+                                              
 def main(args=None):
     rclpy.init(args=args)
     crazyflie_swarm_node = CrazyflieSwarmNode()

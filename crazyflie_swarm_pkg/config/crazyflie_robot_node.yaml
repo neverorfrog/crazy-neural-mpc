@@ -1,0 +1,3 @@
+crazyflie_robot_node:
+  ros__parameters:
+    pose_rate_publisher: 5.0

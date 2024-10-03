@@ -1,4 +1,4 @@
-from cflib.crtp import init_drivers
+import cflib.crtp as crtp
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
@@ -8,10 +8,10 @@ import time
 from threading import Event
 
 class CrazyflieRobot:
-    def __init__(self, uri, ro_cache=None, rw_cache=None):
+    def __init__(self, uri, ro_cache=None, rw_cache=None):        
         self.uri = uri
         self.cf = Crazyflie(ro_cache=ro_cache, rw_cache=rw_cache)
-        self.scf = SyncCrazyflie(uri, cf=self.cf)      
+        self.scf = SyncCrazyflie(self.uri, cf=self.cf)      
         
         self.default_height = 0.2
         self.default_velocity = 0.1
@@ -168,7 +168,7 @@ class CrazyflieRobot:
     
 class CrazyflieSwarm:
     def __init__(self, uris, ro_cache=None, rw_cache=None):
-        init_drivers()
+        crtp.init_drivers()
         self.uris = uris    
         self.__crazyflie_robots = {}
         
