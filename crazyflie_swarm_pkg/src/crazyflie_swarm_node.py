@@ -1,70 +1,115 @@
 import time
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
-from crazyflie_swarm_interfaces.msg import SwarmPoses, CrazyfliePose
+from crazyflie_swarm_interfaces.msg import CrazyflieState
 
 import cflib.crtp as crtp
 from script.swarm import CrazyflieRobot
 
 class CrazyflieSwarmNode(Node):
-    def __init__(self):
-        super().__init__('crazyflie_swarm_node')
-        self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
+  def __init__(self):
+    super().__init__('crazyflie_swarm_node')
+    self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
-        #* Parameters
-        self.declare_parameter('robot_1', ['crazyflie_robot_1', 'radio://0/80/2M/E7E7E7E7E7'])
-        self.declare_parameter('robot_2', ['crazyflie_robot_2', 'radio://0/80/2M/E7E7E7E7E7'])
+    #* Parameters
+    self.declare_parameter('crazyflie_robots.robot_1.name', 'crazyflie_robot_1')
+    self.declare_parameter('crazyflie_robots.robot_1.uri', 'radio://0/80/2M/E7E7E7E7E7')
+    self.declare_parameter('crazyflie_robots.robot_1.state_publisher_rate', 10.0)
+    
+    self.declare_parameter('crazyflie_robots.robot_2.name', 'crazyflie_robot_2')
+    self.declare_parameter('crazyflie_robots.robot_2.uri', 'radio://0/80/2M/E7E7E7E7E8')
+    self.declare_parameter('crazyflie_robots.robot_2.state_publisher_rate', 10.0)
+
+    self.crazyflie_params = {
+      self.get_parameter('crazyflie_robots.robot_1.name').get_parameter_value().string_value : 
+      {
+        'uri': self.get_parameter('crazyflie_robots.robot_1.uri').get_parameter_value().string_value,
+        'state_publisher_rate': self.get_parameter('crazyflie_robots.robot_1.state_publisher_rate').get_parameter_value().double_value,
+      },
+      self.get_parameter('crazyflie_robots.robot_2.name').get_parameter_value().string_value : 
+      {
+        'uri': self.get_parameter('crazyflie_robots.robot_2.uri').get_parameter_value().string_value,
+        'state_publisher_rate': self.get_parameter('crazyflie_robots.robot_2.state_publisher_rate').get_parameter_value().double_value,
+      },
+    }
         
-        self.robot_1 = self.get_parameter('robot_1').get_parameter_value().string_array_value
-        self.robot_2 = self.get_parameter('robot_2').get_parameter_value().string_array_value
+    self.get_logger().info(f'CrazyflieDockNode started with parameters:')
+    self.get_logger().info(f'- crazyflie_params: ')
+    for name, params in self.crazyflie_params.items():
+      self.get_logger().info(f'  - {name}: {params}')
+      
+    #* Subscriptions
+    self.led_subscribers = {}
+    for name, _ in self.crazyflie_params.items():
+      self.led_subscribers[name] = self.create_subscription(Float32, 
+                                                            f'/{name}/led', 
+                                                            lambda msg, name=name: self.led_callback(msg, name), 
+                                                            10)
+        
+    #* Publishers
+    self.state_publishers = {}
+    for name, params in self.crazyflie_params.items():
+      state_publisher_rate = params['state_publisher_rate']
+      publisher = self.create_publisher(CrazyflieState, f'/{name}/state', 10)
+      self.state_publishers[name] = publisher
+      self.create_timer(1/state_publisher_rate, lambda name=name, publisher=publisher: self.state_callback(name, publisher))
+    
+    #* CrazyflieSwarm
+    crtp.init_drivers()
+    self.crazyflie_swarm = {}        
+    for name, params in self.crazyflie_params.items():
+      uri = params['uri']
+      crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache')
+      while not crazyflie_robot.initialize():
+        print(f'Connecting to Crazyflie {name} ...')
+        time.sleep(0.5)
+      print(f'Connected to Crazyflie {name}')
+      self.crazyflie_swarm[name] = crazyflie_robot
+  
+  def led_callback(self, msg, name):    
+    self.get_logger().info(f'Received message: {msg.data} for robot: {name}')
+    self.crazyflie_swarm[name].set_led(int(msg.data))
             
-        self.get_logger().info(f'CrazyflieDockNode started with parameters:')
-        self.get_logger().info(f'- robots: ')
-        self.get_logger().info(f'  - robot_1: {self.robot_1}')
-        self.get_logger().info(f'  - robot_2: {self.robot_2}')
- 
-        self.robots = {
-            self.robot_1[0]: self.robot_1[1],
-            self.robot_2[0]: self.robot_2[1]
-        }
+  def state_callback(self, name, publisher):        
+    try:
+      crazyflie_robot = self.crazyflie_swarm[name]
+      
+      position = crazyflie_robot.get_estimated_position()
+      euler_orientation = crazyflie_robot.get_estimated_euler_orientation()
+      quaternion_orientation = crazyflie_robot.get_estimated_quaternion_orientation()
+                  
+      state_msg = CrazyflieState()
+      state_msg.uri = crazyflie_robot.get_uri()
+      state_msg.position[0] = position['x']
+      state_msg.position[1] = position['y']
+      state_msg.position[2] = position['z']
+      state_msg.euler_orientation[0] = euler_orientation['roll']
+      state_msg.euler_orientation[1] = euler_orientation['pitch']
+      state_msg.euler_orientation[2] = euler_orientation['yaw']
+      state_msg.quaternion_orientation[0] = quaternion_orientation['qx']
+      state_msg.quaternion_orientation[1] = quaternion_orientation['qy']
+      state_msg.quaternion_orientation[2] = quaternion_orientation['qz']
+      state_msg.quaternion_orientation[3] = quaternion_orientation['qw']
+      
+      publisher.publish(state_msg)
         
-        #* Subscriptions
-        self.led_subscribers = {}
-        for name, uri in self.robots.items():
-            self.led_subscribers[name] = self.create_subscription(Float32, 
-                                                                  f'/crazyflie_robot/{name}/led', 
-                                                                  lambda msg, name=name: self.led_callback(msg, name), 
-                                                                  10)
-        
-        #* CrazyflieSwarm
-        crtp.init_drivers()
-        self.crazyflie_swarm = {}        
-        for name, uri in self.robots.items():
-            crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache')
-            while not crazyflie_robot.initialize():
-                print(f'Connecting to Crazyflie {name} ...')
-                time.sleep(0.5)
-            print(f'Connected to Crazyflie {name}')
-            self.crazyflie_swarm[name] = crazyflie_robot
-        
-    def led_callback(self, msg, name):    
-        self.get_logger().info(f'Received message: {msg.data} for robot: {name}')
-        self.crazyflie_swarm[name].set_led(int(msg.data))
-              
+    except Exception as e:
+      self.get_logger().error(f'Error in poses_callback: {e}')
                                               
 def main(args=None):
-    rclpy.init(args=args)
-    crazyflie_swarm_node = CrazyflieSwarmNode()
-    try:
-        rclpy.spin(crazyflie_swarm_node)
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        crazyflie_swarm_node.get_logger().error(f'Error in main loop: {e}')
-    finally:
-        crazyflie_swarm_node.destroy_node()
-        rclpy.shutdown()
+  rclpy.init(args=args)
+  crazyflie_swarm_node = CrazyflieSwarmNode()
+  try:
+    rclpy.spin(crazyflie_swarm_node)
+  except KeyboardInterrupt:
+    pass
+  except Exception as e:
+    crazyflie_swarm_node.get_logger().error(f'Error in main loop: {e}')
+  finally:
+    crazyflie_swarm_node.destroy_node()
+    rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

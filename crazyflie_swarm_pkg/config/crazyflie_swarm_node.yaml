@@ -1,4 +1,13 @@
 crazyflie_swarm_node:
   ros__parameters:
-    robot_1: ['crazyflie_robot_1', 'radio://0/80/2M/E7E7E7E7E7']
-    robot_2: ['crazyflie_robot_2', 'radio://0/80/2M/E7E7E7E7E8']
+  
+    crazyflie_robots:
+      robot_1:
+        name: 'crazyflie_robot_1'
+        uri: 'radio://0/80/2M/E7E7E7E7E7'
+        state_publisher_rate: 2.0
+
+      robot_2:
+        name: 'crazyflie_robot_2'
+        uri: 'radio://0/80/2M/E7E7E7E7E8'
+        state_publisher_rate: 2.0

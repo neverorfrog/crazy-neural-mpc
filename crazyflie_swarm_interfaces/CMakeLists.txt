@@ -13,8 +13,7 @@ find_package(geometry_msgs REQUIRED)
 
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/SwarmPoses.msg"
-  "msg/CrazyfliePose.msg"
+  "msg/CrazyflieState.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 
