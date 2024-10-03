@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
+# from crazyflie_swarm_interfaces.srv import TakeOff
 
 class CrazyflieDock(Node):
   def __init__(self):
@@ -33,11 +34,18 @@ class CrazyflieDock(Node):
     for name, params in self.crazyflie_params.items():
       self.get_logger().info(f'  - {name}: {params}')
     
+    #* Publishers
     self.led_publishers = {}
     for name, _ in self.crazyflie_params.items():
       publisher = self.create_publisher(Float32, f'/{name}/led', 10)
       self.led_publishers[name] = publisher
       self.create_timer(1/self.rate, lambda name=name, publisher=publisher: self.led_callback(name, publisher))
+    
+    #* Services
+    # self.take_off_client = self.create_client(TakeOff, '/take_off')
+    # while not self.take_off_client.wait_for_service(timeout_sec=1.0):
+    #   self.get_logger().info('TakeOff service not available, waiting again...')
+    # self.take_off_request = TakeOff.Request()
     
     self.k1 = 0
     self.k2 = 0
@@ -53,7 +61,13 @@ class CrazyflieDock(Node):
       else: intensity.data = 255.0
       self.k2 += 1
     publisher.publish(intensity)
-        
+    
+  # def send_request(self, a, b):
+  #   self.req.a = a
+  #   self.req.b = b
+  #   self.future = self.cli.call_async(self.req)
+  #   rclpy.spin_until_future_complete(self, self.future)
+  #   return self.future.result()
 
 def main(args=None):
     rclpy.init(args=args)

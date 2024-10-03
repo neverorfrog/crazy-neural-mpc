@@ -3,7 +3,9 @@ import time
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
+
 from crazyflie_swarm_interfaces.msg import CrazyflieState
+from crazyflie_swarm_interfaces.srv import TakeOff
 
 import cflib.crtp as crtp
 from script.swarm import CrazyflieRobot
@@ -55,6 +57,11 @@ class CrazyflieSwarmNode(Node):
       publisher = self.create_publisher(CrazyflieState, f'/{name}/state', 10)
       self.state_publishers[name] = publisher
       self.create_timer(1/state_publisher_rate, lambda name=name, publisher=publisher: self.state_callback(name, publisher))
+      
+    #* Services
+    self.take_off_services = {}
+    for name, _ in self.crazyflie_params.items():
+      self.take_off_services[name] = self.create_service(TakeOff, f'/{name}/take_off', lambda request, response, name=name: self.take_off_callback(request, response, name))
     
     #* CrazyflieSwarm
     crtp.init_drivers()
@@ -97,6 +104,22 @@ class CrazyflieSwarmNode(Node):
         
     except Exception as e:
       self.get_logger().error(f'Error in poses_callback: {e}')
+                
+  def take_off_callback(self, request, response, name):
+    try:
+      height = request.height
+      velocity = request.velocity 
+      
+      crazyflie_robot = self.crazyflie_swarm[name]
+      crazyflie_robot.take_off(height, velocity)
+        
+      response.success = True
+
+    except Exception as e:
+      self.get_logger().error(f'Error in take_off_callback: {e}')
+      response.success = False
+      
+    return response
                                               
 def main(args=None):
   rclpy.init(args=args)
