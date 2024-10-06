@@ -1,0 +1,14 @@
+dt: 0.01
+state_publisher_rate: 10.0
+led_publisher_rate: 1.0
+
+crazyflies:
+  - name: cf1
+    uri: radio://0/80/2M/E7E7E7E7E7
+    height: 0.2
+  - name: cf2
+    uri: radio://0/80/2M/E7E7E7E7E8
+    height: 0.3
+  - name: cf3
+    uri: radio://0/80/2M/E7E7E7E7E9
+    height: 0.2
