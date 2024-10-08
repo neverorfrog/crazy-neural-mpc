@@ -23,7 +23,6 @@ class CrazyflieDock(Node):
       name = crazyflie_config.name
       self.swarm[name] = uri
     
-    
     #* Publishers
     self.led_publishers: Dict[str, Publisher] = {}
     led_publisher_rate = self.config.led_publisher_rate

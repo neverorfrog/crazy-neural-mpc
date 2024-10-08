@@ -5,6 +5,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import time
 from threading import Event
 
+from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_state import CrazyState
 from utils import log
 
@@ -13,7 +14,6 @@ from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils.multiranger import Multiranger
-from crazyflie_swarm_interfaces.msg import CrazyflieState
 
 class CrazyflieRobot:
   def __init__(self, uri, ro_cache=None, rw_cache=None, ros2_logger=None, multiranger=False):        
@@ -107,6 +107,7 @@ class CrazyflieRobot:
   def take_off(self, absolute_height=None, velocity=None):
     if not self.__connection_opened: raise Exception('Connection not opened')
     if not self.__flow_deck_attached: raise Exception('Flow deck not attached')
+    if self.multiranger and not self.multiranger_attached: raise Exception('Multiranger not attached')
 
     if absolute_height is None: absolute_height = self.default_height
     if velocity is None: velocity = self.default_velocity
@@ -127,12 +128,10 @@ class CrazyflieRobot:
                     
   #* Setters
   def set_led(self, intensity):
+    log(f'Setting led intensity to {intensity} for {self.uri}', self.ros2_logger)
     self.cf.param.set_value('led.bitmask', intensity)
                             
   #* Getters    
-  def get_uri(self):
-    return self.uri
-  
   def get_state(self) -> CrazyflieState:
     
     state_msg = CrazyflieState()
