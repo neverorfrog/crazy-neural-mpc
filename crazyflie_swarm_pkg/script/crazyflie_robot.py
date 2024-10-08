@@ -13,6 +13,7 @@ from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils.multiranger import Multiranger
+from crazyflie_swarm_interfaces.msg import CrazyflieState
 
 class CrazyflieRobot:
   def __init__(self, uri, ro_cache=None, rw_cache=None, ros2_logger=None, multiranger=False):        
@@ -131,6 +132,37 @@ class CrazyflieRobot:
   #* Getters    
   def get_uri(self):
     return self.uri
+  
+  def get_state(self) -> CrazyflieState:
+    
+    state_msg = CrazyflieState()
+    state_msg.uri = self.uri
+    
+    state_msg.position[0] = self.state.x
+    state_msg.position[1] = self.state.y
+    state_msg.position[2] = self.state.z
+    
+    state_msg.euler_orientation[0] = self.state.roll
+    state_msg.euler_orientation[1] = self.state.pitch
+    state_msg.euler_orientation[2] = self.state.yaw
+    
+    state_msg.quaternion_orientation[0] = self.state.qx
+    state_msg.quaternion_orientation[1] = self.state.qy
+    state_msg.quaternion_orientation[2] = self.state.qz
+    state_msg.quaternion_orientation[3] = self.state.qw
+    
+    state_msg.velocity[0] = self.state.vx
+    state_msg.velocity[1] = self.state.vy
+    state_msg.velocity[2] = self.state.vz
+    
+    if(self.multiranger):
+      state_msg.multiranger[0] = self.multiranger_sensor.front
+      state_msg.multiranger[1] = self.multiranger_sensor.back
+      state_msg.multiranger[2] = self.multiranger_sensor.left
+      state_msg.multiranger[3] = self.multiranger_sensor.right
+      state_msg.multiranger[4] = self.multiranger_sensor.up
+    
+    return state_msg
   
   #* Estimator Setup 
   def setup_estimators(self) -> None:

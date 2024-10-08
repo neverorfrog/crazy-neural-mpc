@@ -35,7 +35,7 @@ class CrazyflieSwarm():
       log(f'Crazyflie {name} connected.', self.ros2_logger)
 
       log(f'Resetting estimators of Crazyflie {name} ...', self.ros2_logger)          
-      crazyflie_robot.reset_estimator()
+      # crazyflie_robot.reset_estimator()
       log(f'Estimators of Crazyflie {name} reset.', self.ros2_logger)
             
       self._crazyflies[name] = crazyflie_robot

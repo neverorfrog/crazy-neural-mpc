@@ -3,26 +3,50 @@ import rclpy
 from rclpy.node import Node, Subscription, Publisher
 from std_msgs.msg import Float32
 
+from script.config import SwarmConfig, load_config, get_package_root
 from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_interfaces.srv import TakeOff, Land
+import cflib.crtp as crtp
+from crazyflie_robot import CrazyflieRobot
 
-from script.crazyflie_swarm import CrazyflieSwarm
+import time
 
 class CrazyflieSwarmNode(Node):
   def __init__(self):
     super().__init__('crazyflie_swarm_node')
     self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
     
-    #* CrazyflieSwarm (with config inside)
-    self.swarm = CrazyflieSwarm(ros2_logger=self.get_logger())
+    root = get_package_root()     
+    config = load_config(f'{root}/config/config.yaml', SwarmConfig)
+    self.config = config
 
     self.get_logger().info(f'CrazyflieSwarmNode started with parameters:')
-    for cf_config in self.swarm.config.crazyflies:
+    for cf_config in self.config.crazyflies:
       self.get_logger().info(f'  - {cf_config.name}: {cf_config.uri}')
-      
+    
+    #* CrazyflieSwarm (with config inside)
+    crtp.init_drivers() 
+    self.swarm: Dict[str, CrazyflieRobot] = {} 
+    for crazyflie_config in self.config.crazyflies:
+      uri = crazyflie_config.uri
+      name = crazyflie_config.name
+      multiranger = crazyflie_config.multiranger
+      crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache', ros2_logger=self.get_logger(), multiranger=multiranger)
+  
+      while not crazyflie_robot.initialize():
+        self.get_logger().info(f'Connecting to Crazyflie {name} ...')
+        time.sleep(0.5)
+      self.get_logger().info(f'Crazyflie {name} connected.')
+
+      self.get_logger().info(f'Resetting estimators of Crazyflie {name} ...')          
+      # crazyflie_robot.reset_estimator()
+      self.get_logger().info(f'Estimators of Crazyflie {name} reset.')
+
+      self.swarm[name] = crazyflie_robot
+    
     #* Subscriptions
     self.led_subscribers: Dict[str, Subscription] = {}
-    for name, _ in self.swarm:
+    for name, _ in self.swarm.items():
       self.led_subscribers[name] = self.create_subscription(Float32, 
                                                             f'/{name}/led', 
                                                             lambda msg, name=name: self.led_callback(msg, name), 
@@ -30,8 +54,8 @@ class CrazyflieSwarmNode(Node):
               
     #* Publishers
     self.state_publishers: Dict[str, Publisher] = {}
-    state_publisher_rate = self.swarm.config.state_publisher_rate
-    for name, _ in self.swarm:
+    state_publisher_rate = self.config.state_publisher_rate
+    for name, _ in self.swarm.items():
       publisher = self.create_publisher(CrazyflieState, f'/{name}/state', 10)
       self.state_publishers[name] = publisher
       self.create_timer(1/state_publisher_rate, lambda name=name, publisher=publisher: self.state_callback(name, publisher))
@@ -43,14 +67,14 @@ class CrazyflieSwarmNode(Node):
 
   def led_callback(self, msg, name: str) -> None:    
     self.get_logger().info(f'Received message: {msg.data} for robot: {name}')
-    self.swarm.set_led(name, msg.data)
+    self.swarm[name].set_led(msg.data)
   
   def velocity_callback(self, msg, name: str) -> None:
-    self.swarm.set_velocity(name, msg.vx, msg.vy, msg.vz, msg.yawrate)   
+    self.swarm[name].set_velocity(name, msg.vx, msg.vy, msg.vz, msg.yawrate)   
             
   def state_callback(self, name: str, publisher: Publisher) -> None:        
     try:
-      state_msg = self.swarm.get_state(name)
+      state_msg = self.swarm[name].get_state()
       publisher.publish(state_msg)
     except Exception as e:
       self.get_logger().error(f'Error in state_callback: {e}')
@@ -61,10 +85,8 @@ class CrazyflieSwarmNode(Node):
     try:
       height = request.height
       velocity = request.velocity 
-      
-      for name, cf in self.swarm:
+      for name, cf in self.swarm.items():
         cf.take_off(height, velocity)
-        
       response.success = True
 
     except Exception as e:
@@ -77,10 +99,8 @@ class CrazyflieSwarmNode(Node):
     self.get_logger().info(f'Land')
     try:
       velocity = request.velocity
-
-      for name, cf in self.swarm:
+      for name, cf in self.swarm.items():
         cf.land(velocity)
-
       response.success = True
 
     except Exception as e:
