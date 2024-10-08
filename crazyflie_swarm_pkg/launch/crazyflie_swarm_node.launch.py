@@ -6,8 +6,8 @@ def generate_launch_description():
   
   swarm=Node(
     package = 'crazyflie_swarm_pkg',
-    name = 'crazyflie_dock_node',
-    executable = 'crazyflie_dock_exec'
+    name = 'crazyflie_swarm_node',
+    executable = 'crazyflie_swarm_exec'
   )
       
   ld.add_action(swarm)

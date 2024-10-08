@@ -6,9 +6,9 @@ crazyflies:
   - name: cf1
     uri: radio://0/80/2M/E7E7E7E7E7
     height: 0.2
-  - name: cf2
-    uri: radio://0/80/2M/E7E7E7E7E8
-    height: 0.3
-  - name: cf3
-    uri: radio://0/80/2M/E7E7E7E7E9
-    height: 0.2
+  # - name: cf2
+  #   uri: radio://0/80/2M/E7E7E7E7E8
+  #   height: 0.3
+  # - name: cf3
+  #   uri: radio://0/80/2M/E7E7E7E7E9
+  #   height: 0.2

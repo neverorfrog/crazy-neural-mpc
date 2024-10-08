@@ -2,24 +2,26 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+import time
+from threading import Event
+
+from crazyflie_state import CrazyState
+from utils import log
+
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
-from cflib.positioning.motion_commander import MotionCommander
-import time
-from threading import Event
-from crazyflie_state import CrazyState
 
 class CrazyflieRobot:
-  def __init__(self, uri, ro_cache=None, rw_cache=None):        
+  def __init__(self, uri, ro_cache=None, rw_cache=None, ros2_logger=None):        
     self.uri = uri
     self.cf = Crazyflie(ro_cache=ro_cache, rw_cache=rw_cache)
     self.scf = SyncCrazyflie(self.uri, cf=self.cf)      
+    self.ros2_logger = ros2_logger
     
     self.default_height = 0.2
     self.default_velocity = 0.1
-    self.motion_commander = MotionCommander(self.scf, self.default_height)
     
     self.state = CrazyState()
     self.estimators: list[LogConfig] = []
@@ -42,7 +44,7 @@ class CrazyflieRobot:
           not self.__flow_deck_attached:
         
       if time.time() - start_initialization > self.__timeout:
-        print(f'Initialization timeout for {self.uri}')
+        log(f'Initialization timeout for {self.uri}', self.ros2_logger)
         self.close_connection()
         return False
     
@@ -52,7 +54,7 @@ class CrazyflieRobot:
     for estimator in self.estimators:
       estimator.start()
         
-    print(f'Crazyflie {self.uri} initialized')
+    log(f'Crazyflie {self.uri} initialized', self.ros2_logger)
     return True
         
   # Flow deck management
@@ -60,9 +62,9 @@ class CrazyflieRobot:
     if int(value_str):
       self.flow_deck_attached_event.set()
       self.__flow_deck_attached = True
-      print(f'Flow deck attached to {self.uri}')
+      log(f'Flow deck attached to {self.uri}', self.ros2_logger)
     else:
-      print(f'Flow deck is not attached to {self.uri}')
+      log(f'Flow deck is not attached to {self.uri}', self.ros2_logger)
 
   # Connection management
   def open_connection(self):
@@ -83,22 +85,19 @@ class CrazyflieRobot:
     if not self.__connection_opened: raise Exception('Connection not opened')
     if not self.__flow_deck_attached: raise Exception('Flow deck not attached')
 
-    self.cf.high_level_commander.takeoff(0.1, 3)
+    if absolute_height is None: absolute_height = self.default_height
+    if velocity is None: velocity = self.default_velocity
+    self.cf.high_level_commander.takeoff(absolute_height, velocity)
         
-  def land(self, velocity=None):        
-    self.cf.high_level_commander.land(0.0, 3)
+  def land(self, absolute_height=None, velocity=None):     
+    if absolute_height is None: absolute_height = self.default_height
+    if velocity is None: velocity = self.default_velocity   
+    self.cf.high_level_commander.land(absolute_height, velocity)
+    self.cf.high_level_commander.stop()
         
   def hover(self):
     self.motion_commander.stop()
-        
-  def forward(self, distance, velocity=None):
-    velocity = self.default_velocity if velocity is None else velocity
-    self.motion_commander.forward(distance, velocity)
-        
-  def start_forward(self, velocity=None):
-    velocity = self.default_velocity if velocity is None else velocity
-    self.motion_commander.start_forward(velocity)
-        
+                
   #* Setters
   def set_led(self, intensity):
     self.cf.param.set_value('led.bitmask', intensity)
@@ -196,41 +195,41 @@ class CrazyflieRobot:
     self.estimators.append(acceleration_estimator)
     self.cf.log.add_config(acceleration_estimator)
     acceleration_estimator.data_received_cb.add_callback(get_acceleration_callback)
-        
-    def reset_estimator(self):
-      self.cf.param.set_value('kalman.resetEstimation', '1')
-      time.sleep(0.1)
-      self.cf.param.set_value('kalman.resetEstimation', '0')
       
-      log_config = LogConfig(name='Kalman Variance', period_in_ms=500)
-      log_config.add_variable('kalman.varPX', 'float')
-      log_config.add_variable('kalman.varPY', 'float')
-      log_config.add_variable('kalman.varPZ', 'float')
+  def reset_estimator(self):
+    self.cf.param.set_value('kalman.resetEstimation', '1')
+    time.sleep(0.1)
+    self.cf.param.set_value('kalman.resetEstimation', '0')
+    
+    log_config = LogConfig(name='Kalman Variance', period_in_ms=500)
+    log_config.add_variable('kalman.varPX', 'float')
+    log_config.add_variable('kalman.varPY', 'float')
+    log_config.add_variable('kalman.varPZ', 'float')
 
-      var_y_history = [1000] * 10
-      var_x_history = [1000] * 10
-      var_z_history = [1000] * 10
+    var_y_history = [1000] * 10
+    var_x_history = [1000] * 10
+    var_z_history = [1000] * 10
 
-      threshold = 0.001
+    threshold = 0.001
 
-      with SyncLogger(self.scf, log_config) as logger:
-        for log_entry in logger:
-          data = log_entry[1]
+    with SyncLogger(self.scf, log_config) as logger:
+      for log_entry in logger:
+        data = log_entry[1]
 
-          var_x_history.append(data['kalman.varPX'])
-          var_x_history.pop(0)
-          var_y_history.append(data['kalman.varPY'])
-          var_y_history.pop(0)
-          var_z_history.append(data['kalman.varPZ'])
-          var_z_history.pop(0)
+        var_x_history.append(data['kalman.varPX'])
+        var_x_history.pop(0)
+        var_y_history.append(data['kalman.varPY'])
+        var_y_history.pop(0)
+        var_z_history.append(data['kalman.varPZ'])
+        var_z_history.pop(0)
 
-          min_x = min(var_x_history)
-          max_x = max(var_x_history)
-          min_y = min(var_y_history)
-          max_y = max(var_y_history)
-          min_z = min(var_z_history)
-          max_z = max(var_z_history)
+        min_x = min(var_x_history)
+        max_x = max(var_x_history)
+        min_y = min(var_y_history)
+        max_y = max(var_y_history)
+        min_z = min(var_z_history)
+        max_z = max(var_z_history)
 
-          if (max_x - min_x) < threshold and (max_y - min_y) < threshold and (max_z - min_z) < threshold:
-            break
-        
+        if (max_x - min_x) < threshold and (max_y - min_y) < threshold and (max_z - min_z) < threshold:
+          break
+      

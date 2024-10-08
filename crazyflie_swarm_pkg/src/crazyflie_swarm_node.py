@@ -50,7 +50,7 @@ class CrazyflieSwarmNode(Node):
       state_msg = self.swarm.get_state(name)
       publisher.publish(state_msg)
     except Exception as e:
-      self.get_logger().error(f'Error in poses_callback: {e}')
+      self.get_logger().error(f'Error in state_callback: {e}')
           
                 
   def take_off_service_callback(self, request, response):

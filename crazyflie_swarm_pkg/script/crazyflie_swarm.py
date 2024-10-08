@@ -4,14 +4,18 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from typing import Dict
 from config import SwarmConfig, load_config, get_package_root
-import cflib.crtp as crtp
+from utils import log
 from crazyflie_robot import CrazyflieRobot
+
+import cflib.crtp as crtp
 import time
 
 from crazyflie_swarm_interfaces.msg import CrazyflieState
 
 class CrazyflieSwarm():
   def __init__(self, ros2_logger=None):
+    self.ros2_logger = ros2_logger
+    
     root = get_package_root()     
     config = load_config(f'{root}/config/config.yaml', SwarmConfig)
     self.config = config
@@ -25,14 +29,14 @@ class CrazyflieSwarm():
       crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache')
   
       while not crazyflie_robot.initialize():
-          ros2_logger.info(f'Connecting to Crazyflie {name} ...')
-          time.sleep(0.5)
-      ros2_logger.info(f'Connected to Crazyflie {name}')
-      
-      ros2_logger.info(f'Resetting estimators of Crazyflie {name} ...')
+        log(f'Connecting to Crazyflie {name} ...', self.ros2_logger)
+        time.sleep(0.5)
+      log(f'Crazyflie {name} connected.', self.ros2_logger)
+
+      log(f'Resetting estimators of Crazyflie {name} ...', self.ros2_logger)          
       crazyflie_robot.reset_estimator()
-      ros2_logger.info(f'Estimators of Crazyflie {name} reset.')
-      
+      log(f'Estimators of Crazyflie {name} reset.', self.ros2_logger)
+            
       self._crazyflies[name] = crazyflie_robot
     
     self._iterator = iter(self._crazyflies.items())
@@ -63,6 +67,8 @@ class CrazyflieSwarm():
     state_msg.velocity[0] = cf.state.vx
     state_msg.velocity[1] = cf.state.vy
     state_msg.velocity[2] = cf.state.vz
+    
+    return state_msg
         
   def __getitem__(self, name):
     return self._crazyflies[name]

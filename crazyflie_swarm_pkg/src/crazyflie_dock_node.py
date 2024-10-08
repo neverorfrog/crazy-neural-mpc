@@ -1,5 +1,7 @@
 from typing import Dict
 from script.crazyflie_swarm import CrazyflieSwarm
+from script.config import SwarmConfig, load_config, get_package_root
+
 import rclpy
 from rclpy.node import Node, Publisher, Subscription
 from std_msgs.msg import Float32
@@ -10,13 +12,22 @@ class CrazyflieDock(Node):
     self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
     self.get_logger().info(f'CrazyflieDockNode started')
     
-    #* CrazyflieSwarm (with config inside)
-    self.swarm = CrazyflieSwarm(ros2_logger=self.get_logger())
+    root = get_package_root()     
+    config = load_config(f'{root}/config/config.yaml', SwarmConfig)
+    self.config = config
+          
+    #* CrazyflieSwarm
+    self.swarm: Dict[str] = {} 
+    for crazyflie_config in self.config.crazyflies:
+      uri = crazyflie_config.uri
+      name = crazyflie_config.name
+      self.swarm[name] = uri
+    
     
     #* Publishers
     self.led_publishers: Dict[str, Publisher] = {}
-    led_publisher_rate = self.swarm.config.led_publisher_rate
-    for name, _ in self.swarm:
+    led_publisher_rate = self.config.led_publisher_rate
+    for name, _ in self.swarm.items():
       publisher = self.create_publisher(Float32, f'/{name}/led', 10)
       self.led_publishers[name] = publisher
       self.create_timer(1/led_publisher_rate, lambda name=name, publisher=publisher: self.led_callback(name, publisher))
