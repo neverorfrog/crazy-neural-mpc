@@ -156,6 +156,7 @@ class CrazyflieRobot:
         state_msg.position[0] = entry[1]['stateEstimate.x']
         state_msg.position[1] = entry[1]['stateEstimate.y']
         state_msg.position[2] = entry[1]['stateEstimate.z']
+        break
     
     euler_estimator = LogConfig(name="Euler", period_in_ms=10)
     euler_estimator.add_variable("stabilizer.roll", "float")
@@ -166,6 +167,7 @@ class CrazyflieRobot:
         state_msg.euler_orientation[0] = entry[1]['stabilizer.roll']
         state_msg.euler_orientation[1] = entry[1]['stabilizer.pitch']
         state_msg.euler_orientation[2] = entry[1]['stabilizer.yaw']
+        break
     
     quaternion_estimator = LogConfig(name="Quaternion", period_in_ms=10)
     quaternion_estimator.add_variable("stateEstimate.qx", "float")
@@ -178,6 +180,7 @@ class CrazyflieRobot:
         state_msg.quaternion_orientation[1] = entry[1]['stateEstimate.qy']
         state_msg.quaternion_orientation[2] = entry[1]['stateEstimate.qz']
         state_msg.quaternion_orientation[3] = entry[1]['stateEstimate.qw']
+        break
     
     linear_velocity_estimator = LogConfig(name="LinearVelocity", period_in_ms=10)
     linear_velocity_estimator.add_variable("stateEstimate.vx", "float")
@@ -188,6 +191,7 @@ class CrazyflieRobot:
         state_msg.linear_velocity[0] = entry[1]['stateEstimate.vx']
         state_msg.linear_velocity[1] = entry[1]['stateEstimate.vy']
         state_msg.linear_velocity[2] = entry[1]['stateEstimate.vz']
+        break
     
     angular_velocity_estimator = LogConfig(name="AngularVelocity", period_in_ms=10)
     angular_velocity_estimator.add_variable("stateEstimateZ.rateRoll", "float")
@@ -198,6 +202,7 @@ class CrazyflieRobot:
         state_msg.angular_velocity[0] = entry[1]['stateEstimateZ.rateRoll']
         state_msg.angular_velocity[1] = entry[1]['stateEstimateZ.ratePitch']
         state_msg.angular_velocity[2] = entry[1]['stateEstimateZ.rateYaw']
+        break
     
     if(self.multiranger):
       state_msg.multiranger[0] = self.multiranger_sensor.front

@@ -46,12 +46,12 @@ class CrazyflieSwarmNode(Node):
     
             
     #* Publishers
-    # self.state_publishers: Dict[str, Publisher] = {}
-    # state_publisher_rate = self.config.state_publisher_rate
-    # for name, _ in self.swarm.items():
-    #   publisher = self.create_publisher(CrazyflieState, f'/{name}/state', 10)
-    #   self.state_publishers[name] = publisher
-    #   self.create_timer(1/state_publisher_rate, lambda name=name, publisher=publisher: self.state_callback(name, publisher))
+    self.state_publishers: Dict[str, Publisher] = {}
+    state_publisher_rate = self.config.state_publisher_rate
+    for name, _ in self.swarm.items():
+      publisher = self.create_publisher(CrazyflieState, f'/{name}/state', 10)
+      self.state_publishers[name] = publisher
+    self.create_timer(1/state_publisher_rate, self.state_callback)
     
       
     #* Services
@@ -75,13 +75,14 @@ class CrazyflieSwarmNode(Node):
     except Exception as e:
       self.get_logger().error(f'Error in velocity_callback: {e}')
             
-  # def state_callback(self, name: str, publisher: Publisher) -> None: 
-  #   self.get_logger().info(f'Publishing state for robot: {name}') 
-  #   try:
-  #     state_msg = self.swarm[name].get_state()
-  #     publisher.publish(state_msg)
-  #   except Exception as e:
-  #     self.get_logger().error(f'Error in state_callback: {e}')
+  def state_callback(self) -> None: 
+    try:
+      for name, _ in self.swarm.items():
+        self.get_logger().info(f'Publishing state for robot: {name}')
+        state_msg = self.swarm[name].get_state()
+        self.state_publishers[name].publish(state_msg)
+    except Exception as e:
+      self.get_logger().error(f'Error in state_callback: {e}')
           
                 
   def take_off_service_callback(self, request, response):
@@ -118,12 +119,14 @@ def main(args=None):
   crazyflie_swarm_node = CrazyflieSwarmNode()
   try:
     rclpy.spin(crazyflie_swarm_node)
+    
   except KeyboardInterrupt:
     crazyflie_swarm_node.land_service_callback()
     pass
     
   except Exception as e:
     crazyflie_swarm_node.get_logger().error(f'Error in main loop: {e}')
+    
   finally:
     crazyflie_swarm_node.destroy_node()
     rclpy.shutdown()
