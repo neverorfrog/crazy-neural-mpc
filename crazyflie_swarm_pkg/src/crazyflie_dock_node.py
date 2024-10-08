@@ -3,7 +3,6 @@ from script.crazyflie_swarm import CrazyflieSwarm
 import rclpy
 from rclpy.node import Node, Publisher, Subscription
 from std_msgs.msg import Float32
-# from crazyflie_swarm_interfaces.srv import TakeOff
 
 class CrazyflieDock(Node):
   def __init__(self):
@@ -12,7 +11,7 @@ class CrazyflieDock(Node):
     self.get_logger().info(f'CrazyflieDockNode started')
     
     #* CrazyflieSwarm (with config inside)
-    self.swarm = CrazyflieSwarm()
+    self.swarm = CrazyflieSwarm(ros2_logger=self.get_logger())
     
     #* Publishers
     self.led_publishers: Dict[str, Publisher] = {}
@@ -21,13 +20,7 @@ class CrazyflieDock(Node):
       publisher = self.create_publisher(Float32, f'/{name}/led', 10)
       self.led_publishers[name] = publisher
       self.create_timer(1/led_publisher_rate, lambda name=name, publisher=publisher: self.led_callback(name, publisher))
-    
-    #* Services
-    # self.take_off_client = self.create_client(TakeOff, '/take_off')
-    # while not self.take_off_client.wait_for_service(timeout_sec=1.0):
-    #   self.get_logger().info('TakeOff service not available, waiting again...')
-    # self.take_off_request = TakeOff.Request()
-    
+        
     self.k1 = 0
     self.k2 = 0
         
@@ -43,13 +36,6 @@ class CrazyflieDock(Node):
       self.k2 += 1
     publisher.publish(intensity)
     
-  # def send_request(self, a, b):
-  #   self.req.a = a
-  #   self.req.b = b
-  #   self.future = self.cli.call_async(self.req)
-  #   rclpy.spin_until_future_complete(self, self.future)
-  #   return self.future.result()
-
 def main(args=None):
     rclpy.init(args=args)
     crazyflie_node = CrazyflieDock()

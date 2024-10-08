@@ -25,7 +25,6 @@ setup(
     entry_points={
         'console_scripts': [
             'crazyflie_swarm_exec = src.crazyflie_swarm_node:main',
-            # 'crazyflie_robot_exec = src.crazyflie_robot_node:main',
             'crazyflie_dock_exec = src.crazyflie_dock_node:main',
         ],
     },

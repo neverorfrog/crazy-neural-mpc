@@ -14,7 +14,7 @@ class CrazyflieSwarmNode(Node):
     self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
     
     #* CrazyflieSwarm (with config inside)
-    self.swarm = CrazyflieSwarm()
+    self.swarm = CrazyflieSwarm(ros2_logger=self.get_logger())
 
     self.get_logger().info(f'CrazyflieSwarmNode started with parameters:')
     for cf_config in self.swarm.config.crazyflies:
@@ -40,6 +40,7 @@ class CrazyflieSwarmNode(Node):
     self.take_off_service = self.create_service(TakeOff, '/take_off', self.take_off_service_callback)
     self.land_service = self.create_service(Land, '/land', self.land_service_callback)
 
+
   def led_callback(self, msg, name: str) -> None:    
     self.get_logger().info(f'Received message: {msg.data} for robot: {name}')
     self.swarm.set_led(name, msg.data)
@@ -50,6 +51,7 @@ class CrazyflieSwarmNode(Node):
       publisher.publish(state_msg)
     except Exception as e:
       self.get_logger().error(f'Error in poses_callback: {e}')
+          
                 
   def take_off_service_callback(self, request, response):
     self.get_logger().info(f'Take off')
@@ -67,7 +69,6 @@ class CrazyflieSwarmNode(Node):
       response.success = False
       
     return response
-  
   
   def land_service_callback(self, request, response):
     self.get_logger().info(f'Land')
