@@ -51,7 +51,7 @@ class CrazyflieSwarmNode(Node):
     for name, _ in self.swarm.items():
       publisher = self.create_publisher(CrazyflieState, f'/{name}/state', 10)
       self.state_publishers[name] = publisher
-    self.create_timer(1/state_publisher_rate, self.state_callback)
+      self.create_timer(1/state_publisher_rate, lambda name=name, publisher=publisher: self.state_callback(name, publisher))
     
       
     #* Services
@@ -75,12 +75,10 @@ class CrazyflieSwarmNode(Node):
     except Exception as e:
       self.get_logger().error(f'Error in velocity_callback: {e}')
             
-  def state_callback(self) -> None: 
+  def state_callback(self, name, publisher) -> None: 
     try:
-      for name, _ in self.swarm.items():
-        self.get_logger().info(f'Publishing state for robot: {name}')
-        state_msg = self.swarm[name].get_state()
-        self.state_publishers[name].publish(state_msg)
+      state_msg = self.swarm[name].get_state()
+      publisher.publish(state_msg)  
     except Exception as e:
       self.get_logger().error(f'Error in state_callback: {e}')
           
