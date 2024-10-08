@@ -44,6 +44,9 @@ class CrazyflieSwarmNode(Node):
   def led_callback(self, msg, name: str) -> None:    
     self.get_logger().info(f'Received message: {msg.data} for robot: {name}')
     self.swarm.set_led(name, msg.data)
+  
+  def velocity_callback(self, msg, name: str) -> None:
+    self.swarm.set_velocity(name, msg.vx, msg.vy, msg.vz, msg.yawrate)   
             
   def state_callback(self, name: str, publisher: Publisher) -> None:        
     try:

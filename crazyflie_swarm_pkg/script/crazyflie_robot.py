@@ -20,7 +20,6 @@ class CrazyflieRobot:
     self.cf = Crazyflie(ro_cache=ro_cache, rw_cache=rw_cache)
     self.scf = SyncCrazyflie(self.uri, cf=self.cf)      
     self.ros2_logger = ros2_logger
-    self.multiranger = multiranger
      
     self.default_height = 0.2
     self.default_velocity = 0.1
@@ -31,14 +30,17 @@ class CrazyflieRobot:
     self.__timeout = 10 # seconds  
     self.__connection_opened = False
     
+    # Flow deck
     self.__flow_deck_attached = False
     self.flow_deck_attached_event = Event()
     self.flow_deck_attached_event.clear()
     
+    # Multiranger
+    self.multiranger = multiranger
     self.multiranger_attached = False
     self.multiranger_attached_event = Event()
     self.multiranger_attached_event.clear()
-    self.multiranger = Multiranger(self.scf)
+    self.multiranger_sensor = Multiranger(self.scf)
     
               
   #* Initialization
@@ -47,7 +49,7 @@ class CrazyflieRobot:
     
     self.open_connection()
     self.scf.cf.param.add_update_callback(group="deck", name="bcFlow2", cb=self.flow_deck_attached_callback)
-    self.scf.cf.param.add_update_callback(group="deck", name="bcMultiranger", cb=self.multiranger_deck_attached_callback)
+    if self.multiranger: self.scf.cf.param.add_update_callback(group="deck", name="bcMultiranger", cb=self.multiranger_deck_attached_callback)
     
     while not self.__connection_opened or \
           not self.__flow_deck_attached or \
@@ -80,7 +82,7 @@ class CrazyflieRobot:
     if int(value_str):
       self.multiranger_attached_event.set()
       self.multiranger_attached = True
-      self.multiranger.start()
+      self.multiranger_sensor.start()
       log(f'Multiranger is attached to {self.uri}', self.ros2_logger)
     else:
       log(f'Multiranger is not attached to {self.uri}', self.ros2_logger)
@@ -98,7 +100,7 @@ class CrazyflieRobot:
   def close_connection(self):
     self.scf.close_link()
     self.__connection_opened = False
-    self.multiranger.stop()
+    self.multiranger_sensor.stop()
         
   #* Commands
   def take_off(self, absolute_height=None, velocity=None):
@@ -112,9 +114,13 @@ class CrazyflieRobot:
   def land(self, absolute_height=None, velocity=None):     
     if absolute_height is None: absolute_height = self.default_height
     if velocity is None: velocity = self.default_velocity   
+    self.cf.commander.send_notify_setpoint_stop()
     self.cf.high_level_commander.land(absolute_height, velocity)
     self.cf.high_level_commander.stop()
         
+  def set_velocity(self, vx, vy, vz, yaw_rate):
+    self.cf.commander.send_velocity_world_setpoint(vx, vy, vz, yaw_rate)   
+     
   def hover(self):
     pass
                     

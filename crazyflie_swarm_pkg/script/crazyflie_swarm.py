@@ -45,6 +45,9 @@ class CrazyflieSwarm():
   #* Setters
   def set_led(self, name, led_value):
     self._crazyflies[name].set_led(led_value)
+    
+  def set_velocity(self, name, vx, vy, vz, yawrate):
+    self._crazyflies[name].set_velocity(vx, vy, vz, yawrate)
   
   #* Getters
   def get_state(self, name) -> CrazyflieState:
@@ -70,11 +73,11 @@ class CrazyflieSwarm():
     state_msg.velocity[1] = cf.state.vy
     state_msg.velocity[2] = cf.state.vz
     
-    state_msg.multiranger[0] = cf.multiranger.front
-    state_msg.multiranger[1] = cf.multiranger.back
-    state_msg.multiranger[2] = cf.multiranger.left
-    state_msg.multiranger[3] = cf.multiranger.right
-    state_msg.multiranger[4] = cf.multiranger.up
+    state_msg.multiranger[0] = cf.multiranger_sensor.front
+    state_msg.multiranger[1] = cf.multiranger_sensor.back
+    state_msg.multiranger[2] = cf.multiranger_sensor.left
+    state_msg.multiranger[3] = cf.multiranger_sensor.right
+    state_msg.multiranger[4] = cf.multiranger_sensor.up
     
     return state_msg
   
