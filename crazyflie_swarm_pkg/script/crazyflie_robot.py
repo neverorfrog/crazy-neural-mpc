@@ -15,12 +15,13 @@ from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils.multiranger import Multiranger
 
 class CrazyflieRobot:
-  def __init__(self, uri, ro_cache=None, rw_cache=None, ros2_logger=None):        
+  def __init__(self, uri, ro_cache=None, rw_cache=None, ros2_logger=None, multiranger=False):        
     self.uri = uri
     self.cf = Crazyflie(ro_cache=ro_cache, rw_cache=rw_cache)
     self.scf = SyncCrazyflie(self.uri, cf=self.cf)      
     self.ros2_logger = ros2_logger
-    
+    self.multiranger = multiranger
+     
     self.default_height = 0.2
     self.default_velocity = 0.1
     
@@ -50,7 +51,7 @@ class CrazyflieRobot:
     
     while not self.__connection_opened or \
           not self.__flow_deck_attached or \
-          not self.multiranger_attached:
+          (not self.multiranger_attached and self.multiranger):
         
       if time.time() - start_initialization > self.__timeout:
         log(f'Initialization timeout for {self.uri}', self.ros2_logger)

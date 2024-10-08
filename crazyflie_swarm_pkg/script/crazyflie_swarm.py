@@ -26,7 +26,8 @@ class CrazyflieSwarm():
     for crazyflie_config in self.config.crazyflies:
       uri = crazyflie_config.uri
       name = crazyflie_config.name
-      crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache', ros2_logger=self.ros2_logger)
+      multiranger = crazyflie_config.multiranger
+      crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache', ros2_logger=self.ros2_logger, multiranger=multiranger)
   
       while not crazyflie_robot.initialize():
         log(f'Connecting to Crazyflie {name} ...', self.ros2_logger)

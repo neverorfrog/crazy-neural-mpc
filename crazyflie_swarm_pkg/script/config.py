@@ -15,6 +15,7 @@ class CrazyflieConfig:
   name: str = MISSING
   uri: str = MISSING
   height: float = MISSING
+  multiranger: bool = False
 
 @dataclass
 class SwarmConfig:
