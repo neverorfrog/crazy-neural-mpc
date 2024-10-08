@@ -1,6 +1,5 @@
 from typing import Dict
-from script.crazyflie_swarm import CrazyflieSwarm
-from script.config import SwarmConfig, load_config, get_package_root
+from script.config import SwarmConfig, load_config
 
 import rclpy
 from rclpy.node import Node, Publisher, Subscription
@@ -12,8 +11,9 @@ class CrazyflieDock(Node):
     self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
     self.get_logger().info(f'CrazyflieDockNode started')
     
-    root = get_package_root()     
-    config = load_config(f'{root}/config/config.yaml', SwarmConfig)
+    self.declare_parameter('package_path', '')
+    root = self.get_parameter('package_path').get_parameter_value().string_value
+    config = load_config(f'{root}/config/config.yaml', SwarmConfig)   
     self.config = config
           
     #* CrazyflieSwarm

@@ -3,7 +3,6 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import List
 
 import yaml
@@ -45,11 +44,3 @@ def load_config(file_path: str, config_class: Type[T]) -> T:
     except yaml.YAMLError as e:
       print(f"Error decoding YAML: {e}")
       return config_class()
-
-
-def get_package_root() -> Path:
-  current_file = Path(__file__).resolve()
-  for parent in current_file.parents:
-    if (parent / "package.xml").exists():
-      return parent
-  return Path("None")

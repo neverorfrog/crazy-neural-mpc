@@ -3,11 +3,11 @@ import rclpy
 from rclpy.node import Node, Subscription, Publisher
 from std_msgs.msg import Float32
 
-from script.config import SwarmConfig, load_config, get_package_root
+from script.config import SwarmConfig, load_config
 from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_interfaces.srv import TakeOff, Land
 import cflib.crtp as crtp
-from crazyflie_robot import CrazyflieRobot
+from script.crazyflie_robot import CrazyflieRobot
 
 import time
 
@@ -16,7 +16,8 @@ class CrazyflieSwarmNode(Node):
     super().__init__('crazyflie_swarm_node')
     self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
     
-    root = get_package_root()     
+    self.declare_parameter('package_path', '')
+    root = self.get_parameter('package_path').get_parameter_value().string_value
     config = load_config(f'{root}/config/config.yaml', SwarmConfig)
     self.config = config
 
