@@ -26,7 +26,7 @@ class CrazyflieSwarm():
     for crazyflie_config in self.config.crazyflies:
       uri = crazyflie_config.uri
       name = crazyflie_config.name
-      crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache')
+      crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache', ros2_logger=self.ros2_logger)
   
       while not crazyflie_robot.initialize():
         log(f'Connecting to Crazyflie {name} ...', self.ros2_logger)
@@ -41,10 +41,11 @@ class CrazyflieSwarm():
     
     self._iterator = iter(self._crazyflies.items())
       
-        
+  #* Setters
   def set_led(self, name, led_value):
     self._crazyflies[name].set_led(led_value)
-    
+  
+  #* Getters
   def get_state(self, name) -> CrazyflieState:
     cf = self._crazyflies[name]
   
@@ -68,8 +69,18 @@ class CrazyflieSwarm():
     state_msg.velocity[1] = cf.state.vy
     state_msg.velocity[2] = cf.state.vz
     
+    state_msg.multiranger[0] = cf.multiranger.front
+    state_msg.multiranger[1] = cf.multiranger.back
+    state_msg.multiranger[2] = cf.multiranger.left
+    state_msg.multiranger[3] = cf.multiranger.right
+    state_msg.multiranger[4] = cf.multiranger.up
+    
     return state_msg
-        
+  
+  def get_multiranger_data(self, name):
+    return self._crazyflies[name].get_multiranger_data()
+  
+  #* Properties
   def __getitem__(self, name):
     return self._crazyflies[name]
         

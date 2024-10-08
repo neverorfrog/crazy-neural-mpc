@@ -37,10 +37,18 @@ class CrazyState:
   ay: float = 0.0
   az: float = 0.0
   
+  # Multiranger data
+  mr_front: float = 0.0
+  mr_right: float = 0.0
+  mr_back: float = 0.0
+  mr_left: float = 0.0
+  mr_up: float = 0.0
+  
   def __str__(self):
     return f'Position: ({self.x:.2f}, {self.y:.2f}, {self.z:.2f})\n' + \
            f'Euler Orientation: ({self.roll:.2f}, {self.pitch:.2f}, {self.yaw:.2f})\n' + \
            f'Quaternion Orientation: ({self.qx:.2f}, {self.qy:.2f}, {self.qz:.2f}, {self.qw:.2f})\n' + \
            f'Linear Velocity: ({self.vx:.2f}, {self.vy:.2f}, {self.vz:.2f})\n' + \
            f'Angular Velocity: ({self.roll_rate:.2f}, {self.pitch_rate:.2f}, {self.yaw_rate:.2f})\n' + \
-           f'Linear Acceleration: ({self.ax:.2f}, {self.ay:.2f}, {self.az:.2f})'
+           f'Linear Acceleration: ({self.ax:.2f}, {self.ay:.2f}, {self.az:.2f})\n' + \
+           f'Multiranger Data: ({self.mr_front:.2f}, {self.mr_right:.2f}, {self.mr_back:.2f}, {self.mr_left:.2f}, {self.mr_up:.2f})'

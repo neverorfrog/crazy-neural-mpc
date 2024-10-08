@@ -12,6 +12,7 @@ from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
+from cflib.utils.multiranger import Multiranger
 
 class CrazyflieRobot:
   def __init__(self, uri, ro_cache=None, rw_cache=None, ros2_logger=None):        
@@ -28,9 +29,15 @@ class CrazyflieRobot:
       
     self.__timeout = 10 # seconds  
     self.__connection_opened = False
+    
     self.__flow_deck_attached = False
     self.flow_deck_attached_event = Event()
     self.flow_deck_attached_event.clear()
+    
+    self.multiranger_attached = False
+    self.multiranger_attached_event = Event()
+    self.multiranger_attached_event.clear()
+    self.multiranger = Multiranger(self.scf)
     
               
   #* Initialization
@@ -39,9 +46,11 @@ class CrazyflieRobot:
     
     self.open_connection()
     self.scf.cf.param.add_update_callback(group="deck", name="bcFlow2", cb=self.flow_deck_attached_callback)
+    self.scf.cf.param.add_update_callback(group="deck", name="bcMultiranger", cb=self.multiranger_deck_attached_callback)
     
     while not self.__connection_opened or \
-          not self.__flow_deck_attached:
+          not self.__flow_deck_attached or \
+          not self.multiranger_attached:
         
       if time.time() - start_initialization > self.__timeout:
         log(f'Initialization timeout for {self.uri}', self.ros2_logger)
@@ -66,6 +75,15 @@ class CrazyflieRobot:
     else:
       log(f'Flow deck is not attached to {self.uri}', self.ros2_logger)
 
+  def multiranger_deck_attached_callback(self, _, value_str) -> None:
+    if int(value_str):
+      self.multiranger_attached_event.set()
+      self.multiranger_attached = True
+      self.multiranger.start()
+      log(f'Multiranger is attached to {self.uri}', self.ros2_logger)
+    else:
+      log(f'Multiranger is not attached to {self.uri}', self.ros2_logger)
+
   # Connection management
   def open_connection(self):
     if self.__connection_opened: raise Exception('Connection already opened')
@@ -79,6 +97,7 @@ class CrazyflieRobot:
   def close_connection(self):
     self.scf.close_link()
     self.__connection_opened = False
+    self.multiranger.stop()
         
   #* Commands
   def take_off(self, absolute_height=None, velocity=None):
@@ -96,8 +115,8 @@ class CrazyflieRobot:
     self.cf.high_level_commander.stop()
         
   def hover(self):
-    self.motion_commander.stop()
-                
+    pass
+                    
   #* Setters
   def set_led(self, intensity):
     self.cf.param.set_value('led.bitmask', intensity)
@@ -105,7 +124,7 @@ class CrazyflieRobot:
   #* Getters    
   def get_uri(self):
     return self.uri
-
+  
   #* Estimator Setup 
   def setup_estimators(self) -> None:
     def get_position_callback(timestamp, data, logconf) -> None:
@@ -138,7 +157,7 @@ class CrazyflieRobot:
       self.state.ax = data["stateEstimate.ax"]
       self.state.ay = data["stateEstimate.ay"]
       self.state.az = data["stateEstimate.az"]
-
+            
     self.estimators = []
 
     # Position
@@ -195,6 +214,7 @@ class CrazyflieRobot:
     self.estimators.append(acceleration_estimator)
     self.cf.log.add_config(acceleration_estimator)
     acceleration_estimator.data_received_cb.add_callback(get_acceleration_callback)
+    
       
   def reset_estimator(self):
     self.cf.param.set_value('kalman.resetEstimation', '1')
@@ -229,7 +249,7 @@ class CrazyflieRobot:
         max_y = max(var_y_history)
         min_z = min(var_z_history)
         max_z = max(var_z_history)
-
+                
         if (max_x - min_x) < threshold and (max_y - min_y) < threshold and (max_z - min_z) < threshold:
           break
       
