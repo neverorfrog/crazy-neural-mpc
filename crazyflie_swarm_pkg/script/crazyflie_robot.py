@@ -3,6 +3,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import time
+from typing import Dict
 from threading import Event
 
 from crazyflie_swarm_interfaces.msg import CrazyflieState
@@ -26,9 +27,9 @@ class CrazyflieRobot:
     self.default_velocity = 0.1
     
     self.state = CrazyState()
-    self.estimators: list[LogConfig] = []
+    self.estimators: Dict[str, LogConfig] = {}
       
-    self.__timeout = 10 # seconds  
+    self.__connection_timeout = 10 # seconds  
     self.__connection_opened = False
     
     # Flow deck
@@ -38,7 +39,7 @@ class CrazyflieRobot:
     
     # Multiranger
     self.multiranger = multiranger
-    self.multiranger_attached = False
+    self.__multiranger_attached = False
     self.multiranger_attached_event = Event()
     self.multiranger_attached_event.clear()
     self.multiranger_sensor = Multiranger(self.scf)
@@ -52,20 +53,22 @@ class CrazyflieRobot:
     self.scf.cf.param.add_update_callback(group="deck", name="bcFlow2", cb=self.flow_deck_attached_callback)
     if self.multiranger: self.scf.cf.param.add_update_callback(group="deck", name="bcMultiranger", cb=self.multiranger_deck_attached_callback)
     
+    log(f'Connecting to Crazyflie {self.uri} ...', self.ros2_logger)
     while not self.__connection_opened or \
           not self.__flow_deck_attached or \
-          (not self.multiranger_attached and self.multiranger):
+          (not self.__multiranger_attached and self.multiranger):
         
-      if time.time() - start_initialization > self.__timeout:
+      if time.time() - start_initialization > self.__connection_timeout:
         log(f'Initialization timeout for {self.uri}', self.ros2_logger)
         self.close_connection()
         return False
-    
       time.sleep(0.1)
     
-    self.setup_estimators()
-    for estimator in self.estimators:
-      estimator.start()
+    log(f'Crazyflie {self.uri} connected.', self.ros2_logger)
+          
+    log(f'Resetting estimators of Crazyflie {self.uri} ...', self.ros2_logger)
+    self.reset_estimator()
+    log(f'Estimators of Crazyflie {self.uri} reset.', self.ros2_logger)
         
     log(f'Crazyflie {self.uri} initialized', self.ros2_logger)
     return True
@@ -82,7 +85,7 @@ class CrazyflieRobot:
   def multiranger_deck_attached_callback(self, _, value_str) -> None:
     if int(value_str):
       self.multiranger_attached_event.set()
-      self.multiranger_attached = True
+      self.__multiranger_attached = True
       self.multiranger_sensor.start()
       log(f'Multiranger is attached to {self.uri}', self.ros2_logger)
     else:
@@ -99,15 +102,21 @@ class CrazyflieRobot:
       raise e
        
   def close_connection(self):
-    self.scf.close_link()
-    self.__connection_opened = False
     self.multiranger_sensor.stop()
+    self.multiranger_attached_event.clear()
+    self.__multiranger_attached = False
+    
+    self.flow_deck_attached_event.clear()
+    self.__flow_deck_attached = False
+    
+    self.__connection_opened = False
+    self.scf.close_link()
         
   #* Commands
   def take_off(self, absolute_height=None, velocity=None):
     if not self.__connection_opened: raise Exception('Connection not opened')
     if not self.__flow_deck_attached: raise Exception('Flow deck not attached')
-    if self.multiranger and not self.multiranger_attached: raise Exception('Multiranger not attached')
+    if self.multiranger and not self.__multiranger_attached: raise Exception('Multiranger not attached')
 
     if absolute_height is None: absolute_height = self.default_height
     if velocity is None: velocity = self.default_velocity
@@ -125,34 +134,70 @@ class CrazyflieRobot:
      
   def hover(self):
     pass
+       
                     
   #* Setters
   def set_led(self, intensity):
-    log(f'Setting led intensity to {intensity} for {self.uri}', self.ros2_logger)
     self.cf.param.set_value('led.bitmask', intensity)
+        
                             
   #* Getters    
   def get_state(self) -> CrazyflieState:
-    
     state_msg = CrazyflieState()
+    
     state_msg.uri = self.uri
     
-    state_msg.position[0] = self.state.x
-    state_msg.position[1] = self.state.y
-    state_msg.position[2] = self.state.z
+    position_estimator = LogConfig(name="Position", period_in_ms=10)
+    position_estimator.add_variable("stateEstimate.x", "float")
+    position_estimator.add_variable("stateEstimate.y", "float")
+    position_estimator.add_variable("stateEstimate.z", "float")
+    with SyncLogger(self.scf, position_estimator) as logger:
+      for entry in logger:
+        state_msg.position[0] = entry[1]['stateEstimate.x']
+        state_msg.position[1] = entry[1]['stateEstimate.y']
+        state_msg.position[2] = entry[1]['stateEstimate.z']
     
-    state_msg.euler_orientation[0] = self.state.roll
-    state_msg.euler_orientation[1] = self.state.pitch
-    state_msg.euler_orientation[2] = self.state.yaw
+    euler_estimator = LogConfig(name="Euler", period_in_ms=10)
+    euler_estimator.add_variable("stabilizer.roll", "float")
+    euler_estimator.add_variable("stabilizer.pitch", "float")
+    euler_estimator.add_variable("stabilizer.yaw", "float")
+    with SyncLogger(self.scf, euler_estimator) as logger:
+      for entry in logger:
+        state_msg.euler_orientation[0] = entry[1]['stabilizer.roll']
+        state_msg.euler_orientation[1] = entry[1]['stabilizer.pitch']
+        state_msg.euler_orientation[2] = entry[1]['stabilizer.yaw']
     
-    state_msg.quaternion_orientation[0] = self.state.qx
-    state_msg.quaternion_orientation[1] = self.state.qy
-    state_msg.quaternion_orientation[2] = self.state.qz
-    state_msg.quaternion_orientation[3] = self.state.qw
+    quaternion_estimator = LogConfig(name="Quaternion", period_in_ms=10)
+    quaternion_estimator.add_variable("stateEstimate.qx", "float")
+    quaternion_estimator.add_variable("stateEstimate.qy", "float")
+    quaternion_estimator.add_variable("stateEstimate.qz", "float")
+    quaternion_estimator.add_variable("stateEstimate.qw", "float")
+    with SyncLogger(self.scf, quaternion_estimator) as logger:
+      for entry in logger:
+        state_msg.quaternion_orientation[0] = entry[1]['stateEstimate.qx']
+        state_msg.quaternion_orientation[1] = entry[1]['stateEstimate.qy']
+        state_msg.quaternion_orientation[2] = entry[1]['stateEstimate.qz']
+        state_msg.quaternion_orientation[3] = entry[1]['stateEstimate.qw']
     
-    state_msg.velocity[0] = self.state.vx
-    state_msg.velocity[1] = self.state.vy
-    state_msg.velocity[2] = self.state.vz
+    linear_velocity_estimator = LogConfig(name="LinearVelocity", period_in_ms=10)
+    linear_velocity_estimator.add_variable("stateEstimate.vx", "float")
+    linear_velocity_estimator.add_variable("stateEstimate.vy", "float")
+    linear_velocity_estimator.add_variable("stateEstimate.vz", "float")
+    with SyncLogger(self.scf, linear_velocity_estimator) as logger:
+      for entry in logger:
+        state_msg.linear_velocity[0] = entry[1]['stateEstimate.vx']
+        state_msg.linear_velocity[1] = entry[1]['stateEstimate.vy']
+        state_msg.linear_velocity[2] = entry[1]['stateEstimate.vz']
+    
+    angular_velocity_estimator = LogConfig(name="AngularVelocity", period_in_ms=10)
+    angular_velocity_estimator.add_variable("stateEstimateZ.rateRoll", "float")
+    angular_velocity_estimator.add_variable("stateEstimateZ.ratePitch", "float")
+    angular_velocity_estimator.add_variable("stateEstimateZ.rateYaw", "float")
+    with SyncLogger(self.scf, angular_velocity_estimator) as logger:
+      for entry in logger:
+        state_msg.angular_velocity[0] = entry[1]['stateEstimateZ.rateRoll']
+        state_msg.angular_velocity[1] = entry[1]['stateEstimateZ.ratePitch']
+        state_msg.angular_velocity[2] = entry[1]['stateEstimateZ.rateYaw']
     
     if(self.multiranger):
       state_msg.multiranger[0] = self.multiranger_sensor.front
@@ -163,97 +208,8 @@ class CrazyflieRobot:
     
     return state_msg
   
-  #* Estimator Setup 
-  def setup_estimators(self) -> None:
-    def get_position_callback(timestamp, data, logconf) -> None:
-      self.state.x = data["stateEstimate.x"]
-      self.state.y = data["stateEstimate.y"]
-      self.state.z = data["stateEstimate.z"]
-
-    def get_euler_callback(timestamp, data, logconf) -> None:
-      self.state.roll = data["stabilizer.roll"]
-      self.state.pitch = data["stabilizer.pitch"]
-      self.state.yaw = data["stabilizer.yaw"]
-          
-    def get_quaternion_callback(timestamp, data, logconf) -> None:
-      self.state.qx = data["stateEstimate.qx"]
-      self.state.qy = data["stateEstimate.qy"]
-      self.state.qz = data["stateEstimate.qz"]
-      self.state.qw = data["stateEstimate.qw"]
-
-    def get_linear_velocity_callback(timestamp, data, logconf) -> None:
-      self.state.vx = data["stateEstimate.vx"]
-      self.state.vy = data["stateEstimate.vy"]
-      self.state.vz = data["stateEstimate.vz"]
-
-    def get_angular_velocity_callback(timestamp, data, logconf) -> None:
-      self.state.roll_rate = data["stateEstimateZ.rateRoll"]
-      self.state.pitch_rate = data["stateEstimateZ.ratePitch"]
-      self.state.yaw_rate = data["stateEstimateZ.rateYaw"]
-          
-    def get_acceleration_callback(timestamp, data, logconf) -> None:
-      self.state.ax = data["stateEstimate.ax"]
-      self.state.ay = data["stateEstimate.ay"]
-      self.state.az = data["stateEstimate.az"]
-            
-    self.estimators = []
-
-    # Position
-    position_estimator = LogConfig(name="State", period_in_ms=10)
-    position_estimator.add_variable("stateEstimate.x", "float")
-    position_estimator.add_variable("stateEstimate.y", "float")
-    position_estimator.add_variable("stateEstimate.z", "float")
-    self.estimators.append(position_estimator)
-    self.cf.log.add_config(position_estimator)
-    position_estimator.data_received_cb.add_callback(get_position_callback)
-
-    # Euler
-    euler_estimator = LogConfig(name="euler", period_in_ms=10)
-    euler_estimator.add_variable("stabilizer.roll", "float")
-    euler_estimator.add_variable("stabilizer.pitch", "float")
-    euler_estimator.add_variable("stabilizer.yaw", "float")
-    self.estimators.append(euler_estimator)
-    self.cf.log.add_config(euler_estimator)
-    euler_estimator.data_received_cb.add_callback(get_euler_callback)
-      
-    # Quaternion
-    quaternion_estimator = LogConfig(name="Quaternion", period_in_ms=10)
-    quaternion_estimator.add_variable("stateEstimate.qx", "float")
-    quaternion_estimator.add_variable("stateEstimate.qy", "float")
-    quaternion_estimator.add_variable("stateEstimate.qz", "float")
-    quaternion_estimator.add_variable("stateEstimate.qw", "float")
-    self.estimators.append(quaternion_estimator)
-    self.cf.log.add_config(quaternion_estimator)
-    quaternion_estimator.data_received_cb.add_callback(get_quaternion_callback)
-
-    # Linear Velocity
-    linear_velocity_estimator = LogConfig(name="LinearVelocity", period_in_ms=10)
-    linear_velocity_estimator.add_variable("stateEstimate.vx", "float")
-    linear_velocity_estimator.add_variable("stateEstimate.vy", "float")
-    linear_velocity_estimator.add_variable("stateEstimate.vz", "float")
-    self.estimators.append(linear_velocity_estimator)
-    self.cf.log.add_config(linear_velocity_estimator)
-    linear_velocity_estimator.data_received_cb.add_callback(get_linear_velocity_callback)
-
-    # Angular Velocity
-    angular_velocity_estimator = LogConfig(name="AngularVelocity", period_in_ms=10)
-    angular_velocity_estimator.add_variable("stateEstimateZ.rateRoll", "float")
-    angular_velocity_estimator.add_variable("stateEstimateZ.ratePitch", "float")
-    angular_velocity_estimator.add_variable("stateEstimateZ.rateYaw", "float")
-    self.estimators.append(angular_velocity_estimator)
-    self.cf.log.add_config(angular_velocity_estimator)
-    angular_velocity_estimator.data_received_cb.add_callback(get_angular_velocity_callback)
-      
-    # Acceleration
-    acceleration_estimator = LogConfig(name="Acceleration", period_in_ms=10)
-    acceleration_estimator.add_variable("stateEstimate.ax", "float")
-    acceleration_estimator.add_variable("stateEstimate.ay", "float")
-    acceleration_estimator.add_variable("stateEstimate.az", "float")
-    self.estimators.append(acceleration_estimator)
-    self.cf.log.add_config(acceleration_estimator)
-    acceleration_estimator.data_received_cb.add_callback(get_acceleration_callback)
-    
-      
+  
+  #* Estimator Reset   
   def reset_estimator(self):
     self.cf.param.set_value('kalman.resetEstimation', '1')
     time.sleep(0.1)

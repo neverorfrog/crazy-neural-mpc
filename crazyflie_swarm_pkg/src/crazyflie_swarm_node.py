@@ -34,18 +34,8 @@ class CrazyflieSwarmNode(Node):
       uri = crazyflie_config.uri
       name = crazyflie_config.name
       multiranger = crazyflie_config.multiranger
-      
-      crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache', ros2_logger=self.get_logger(), multiranger=multiranger)
-  
-      while not crazyflie_robot.initialize():
-        self.get_logger().info(f'Connecting to Crazyflie {name} ...')
-        time.sleep(0.5)
-      self.get_logger().info(f'Crazyflie {name} connected.')
-
-      # self.get_logger().info(f'Resetting estimators of Crazyflie {name} ...')          
-      # crazyflie_robot.reset_estimator()
-      # self.get_logger().info(f'Estimators of Crazyflie {name} reset.')
-
+      crazyflie_robot = CrazyflieRobot(uri, ro_cache='./ro_cache', rw_cache='./rw_cache', ros2_logger=self.get_logger(), multiranger=multiranger)  
+      while not crazyflie_robot.initialize(): time.sleep(0.5)
       self.swarm[name] = crazyflie_robot
     
     
@@ -56,12 +46,12 @@ class CrazyflieSwarmNode(Node):
     
             
     #* Publishers
-    self.state_publishers: Dict[str, Publisher] = {}
-    state_publisher_rate = self.config.state_publisher_rate
-    for name, _ in self.swarm.items():
-      publisher = self.create_publisher(CrazyflieState, f'/{name}/state', 10)
-      self.state_publishers[name] = publisher
-      self.create_timer(1/state_publisher_rate, lambda name=name, publisher=publisher: self.state_callback(name, publisher))
+    # self.state_publishers: Dict[str, Publisher] = {}
+    # state_publisher_rate = self.config.state_publisher_rate
+    # for name, _ in self.swarm.items():
+    #   publisher = self.create_publisher(CrazyflieState, f'/{name}/state', 10)
+    #   self.state_publishers[name] = publisher
+    #   self.create_timer(1/state_publisher_rate, lambda name=name, publisher=publisher: self.state_callback(name, publisher))
     
       
     #* Services
@@ -81,16 +71,17 @@ class CrazyflieSwarmNode(Node):
   def velocity_callback(self, msg, name: str) -> None:
     self.get_logger().info(f'Received message: {msg.vx}, {msg.vy}, {msg.vz}, {msg.yawrate} for robot: {name}')
     try:
-      self.swarm[name].set_velocity(name, msg.vx, msg.vy, msg.vz, msg.yawrate)   
+      self.swarm[name].set_velocity(msg.vx, msg.vy, msg.vz, msg.yawrate)   
     except Exception as e:
       self.get_logger().error(f'Error in velocity_callback: {e}')
             
-  def state_callback(self, name: str, publisher: Publisher) -> None:  
-    try:
-      state_msg = self.swarm[name].get_state()
-      publisher.publish(state_msg)
-    except Exception as e:
-      self.get_logger().error(f'Error in state_callback: {e}')
+  # def state_callback(self, name: str, publisher: Publisher) -> None: 
+  #   self.get_logger().info(f'Publishing state for robot: {name}') 
+  #   try:
+  #     state_msg = self.swarm[name].get_state()
+  #     publisher.publish(state_msg)
+  #   except Exception as e:
+  #     self.get_logger().error(f'Error in state_callback: {e}')
           
                 
   def take_off_service_callback(self, request, response):
