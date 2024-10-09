@@ -60,11 +60,12 @@ class CrazyflieSwarmNode(Node):
 
 
 
-
+  #* Subscribers Callbacks
   def led_callback(self, msg, name: str) -> None:    
     self.get_logger().info(f'Received message: {msg.data} for robot: {name}')
     try:
       self.swarm[name].set_led(int(msg.data))
+      
     except Exception as e:
       self.get_logger().error(f'Error in led_callback: {e}')
   
@@ -72,17 +73,42 @@ class CrazyflieSwarmNode(Node):
     self.get_logger().info(f'Received message: {msg.vx}, {msg.vy}, {msg.vz}, {msg.yawrate} for robot: {name}')
     try:
       self.swarm[name].set_velocity(msg.vx, msg.vy, msg.vz, msg.yawrate)   
+      
     except Exception as e:
       self.get_logger().error(f'Error in velocity_callback: {e}')
             
+  #* Publishers Callbacks
   def state_callback(self, name, publisher) -> None: 
     try:
-      state_msg = self.swarm[name].get_state()
+      state = self.swarm[name].get_state()
+      state_msg = CrazyflieState()  
+      
+      state_msg.position[0] = state.x
+      state_msg.position[1] = state.y
+      state_msg.position[2] = state.z
+      state_msg.euler_orientation[0] = state.roll
+      state_msg.euler_orientation[1] = state.pitch
+      state_msg.euler_orientation[2] = state.yaw
+      
+      state_msg.linear_velocity[0] = state.vx
+      state_msg.linear_velocity[1] = state.vy
+      state_msg.linear_velocity[2] = state.vz
+      state_msg.angular_velocity[0] = state.roll_rate
+      state_msg.angular_velocity[1] = state.pitch_rate
+      state_msg.angular_velocity[2] = state.yaw_rate
+      
+      state_msg.multiranger[0] = state.mr_front
+      state_msg.multiranger[1] = state.mr_right
+      state_msg.multiranger[2] = state.mr_back
+      state_msg.multiranger[3] = state.mr_left
+      state_msg.multiranger[4] = state.mr_up
+      
       publisher.publish(state_msg)  
+      
     except Exception as e:
       self.get_logger().error(f'Error in state_callback: {e}')
           
-                
+  #* Services Callbacks      
   def take_off_service_callback(self, request, response):
     self.get_logger().info(f'Take off')
     try:
@@ -111,7 +137,15 @@ class CrazyflieSwarmNode(Node):
       response.success = False
     
     return response
-                                              
+  
+  #* Destroy Node Handler
+  def destroy_node(self):
+    for name, cf in self.swarm.items():
+      cf.destroy()
+    super().destroy_node()
+
+
+
 def main(args=None):
   rclpy.init(args=args)
   crazyflie_swarm_node = CrazyflieSwarmNode()

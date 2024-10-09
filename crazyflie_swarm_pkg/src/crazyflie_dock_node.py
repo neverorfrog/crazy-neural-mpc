@@ -33,6 +33,7 @@ class CrazyflieDock(Node):
         
     self.k1 = 0
     self.k2 = 0
+    self.k3 = 0
         
   def led_callback(self, name: str, publisher: Publisher) -> None:
     intensity = Float32()
@@ -44,6 +45,10 @@ class CrazyflieDock(Node):
       if self.k2%2==0: intensity.data = 0.0    
       else: intensity.data = 255.0
       self.k2 += 1
+    elif name == 'cf3': 
+      if self.k3%2==0: intensity.data = 0.0    
+      else: intensity.data = 255.0
+      self.k3 += 1
     publisher.publish(intensity)
     
 def main(args=None):

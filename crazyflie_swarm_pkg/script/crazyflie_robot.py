@@ -6,7 +6,6 @@ import time
 from typing import Dict
 from threading import Event
 
-from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_state import CrazyState
 from utils import log
 
@@ -26,9 +25,11 @@ class CrazyflieRobot:
     self.default_height = 0.2
     self.default_velocity = 0.1
     
+    # State
     self.state = CrazyState()
-    self.estimators: Dict[str, LogConfig] = {}
-      
+    self.estimators: Dict[str, SyncLogger] = {}
+    
+    # Connection
     self.__connection_timeout = 10 # seconds  
     self.__connection_opened = False
     
@@ -69,9 +70,26 @@ class CrazyflieRobot:
     log(f'Resetting estimators of Crazyflie {self.uri} ...', self.ros2_logger)
     self.reset_estimator()
     log(f'Estimators of Crazyflie {self.uri} reset.', self.ros2_logger)
-        
+            
+    log(f'Starting estimators of Crazyflie {self.uri} ...', self.ros2_logger)      
+    self.setup_estimators()
+    log(f'Estimators of Crazyflie {self.uri} started.', self.ros2_logger)
+
     log(f'Crazyflie {self.uri} initialized', self.ros2_logger)
     return True
+        
+  def destroy(self):
+    self.multiranger_sensor.stop()
+    self.multiranger_attached_event.clear()
+    self.__multiranger_attached = False
+    
+    self.flow_deck_attached_event.clear()
+    self.__flow_deck_attached = False
+    
+    self.destroy_estimators()
+  
+    self.close_connection()
+    log(f'Crazyflie {self.uri} destroyed', self.ros2_logger)      
         
   # Flow deck management
   def flow_deck_attached_callback(self, _, value_str):
@@ -101,14 +119,7 @@ class CrazyflieRobot:
       self.close_connection()
       raise e
        
-  def close_connection(self):
-    self.multiranger_sensor.stop()
-    self.multiranger_attached_event.clear()
-    self.__multiranger_attached = False
-    
-    self.flow_deck_attached_event.clear()
-    self.__flow_deck_attached = False
-    
+  def close_connection(self):    
     self.__connection_opened = False
     self.scf.close_link()
         
@@ -142,77 +153,62 @@ class CrazyflieRobot:
         
                             
   #* Getters    
-  def get_state(self) -> CrazyflieState:
-    state_msg = CrazyflieState()
+  def get_state(self) -> CrazyState:
     
-    state_msg.uri = self.uri
+    pose_estimator_entry = self.estimators['pose'].next()
+    velocity_estimator_entry = self.estimators['velocity'].next()
     
-    position_estimator = LogConfig(name="Position", period_in_ms=10)
-    position_estimator.add_variable("stateEstimate.x", "float")
-    position_estimator.add_variable("stateEstimate.y", "float")
-    position_estimator.add_variable("stateEstimate.z", "float")
-    with SyncLogger(self.scf, position_estimator) as logger:
-      for entry in logger:
-        state_msg.position[0] = entry[1]['stateEstimate.x']
-        state_msg.position[1] = entry[1]['stateEstimate.y']
-        state_msg.position[2] = entry[1]['stateEstimate.z']
-        break
+    self.state.x = pose_estimator_entry[1]['stateEstimate.x']
+    self.state.y = pose_estimator_entry[1]['stateEstimate.y']
+    self.state.z = pose_estimator_entry[1]['stateEstimate.z']
     
-    euler_estimator = LogConfig(name="Euler", period_in_ms=10)
-    euler_estimator.add_variable("stabilizer.roll", "float")
-    euler_estimator.add_variable("stabilizer.pitch", "float")
-    euler_estimator.add_variable("stabilizer.yaw", "float")
-    with SyncLogger(self.scf, euler_estimator) as logger:
-      for entry in logger:
-        state_msg.euler_orientation[0] = entry[1]['stabilizer.roll']
-        state_msg.euler_orientation[1] = entry[1]['stabilizer.pitch']
-        state_msg.euler_orientation[2] = entry[1]['stabilizer.yaw']
-        break
+    self.state.roll = pose_estimator_entry[1]['stabilizer.roll']
+    self.state.pitch = pose_estimator_entry[1]['stabilizer.pitch']
+    self.state.yaw = pose_estimator_entry[1]['stabilizer.yaw']
     
-    quaternion_estimator = LogConfig(name="Quaternion", period_in_ms=10)
-    quaternion_estimator.add_variable("stateEstimate.qx", "float")
-    quaternion_estimator.add_variable("stateEstimate.qy", "float")
-    quaternion_estimator.add_variable("stateEstimate.qz", "float")
-    quaternion_estimator.add_variable("stateEstimate.qw", "float")
-    with SyncLogger(self.scf, quaternion_estimator) as logger:
-      for entry in logger:
-        state_msg.quaternion_orientation[0] = entry[1]['stateEstimate.qx']
-        state_msg.quaternion_orientation[1] = entry[1]['stateEstimate.qy']
-        state_msg.quaternion_orientation[2] = entry[1]['stateEstimate.qz']
-        state_msg.quaternion_orientation[3] = entry[1]['stateEstimate.qw']
-        break
+    self.state.vx = velocity_estimator_entry[1]['stateEstimate.vx']
+    self.state.vy = velocity_estimator_entry[1]['stateEstimate.vy']
+    self.state.vz = velocity_estimator_entry[1]['stateEstimate.vz']
     
-    linear_velocity_estimator = LogConfig(name="LinearVelocity", period_in_ms=10)
-    linear_velocity_estimator.add_variable("stateEstimate.vx", "float")
-    linear_velocity_estimator.add_variable("stateEstimate.vy", "float")
-    linear_velocity_estimator.add_variable("stateEstimate.vz", "float")
-    with SyncLogger(self.scf, linear_velocity_estimator) as logger:
-      for entry in logger:
-        state_msg.linear_velocity[0] = entry[1]['stateEstimate.vx']
-        state_msg.linear_velocity[1] = entry[1]['stateEstimate.vy']
-        state_msg.linear_velocity[2] = entry[1]['stateEstimate.vz']
-        break
+    self.state.roll_rate = velocity_estimator_entry[1]['stateEstimateZ.rateRoll']
+    self.state.pitch_rate = velocity_estimator_entry[1]['stateEstimateZ.ratePitch']
+    self.state.yaw_rate = velocity_estimator_entry[1]['stateEstimateZ.rateYaw']
     
-    angular_velocity_estimator = LogConfig(name="AngularVelocity", period_in_ms=10)
-    angular_velocity_estimator.add_variable("stateEstimateZ.rateRoll", "float")
-    angular_velocity_estimator.add_variable("stateEstimateZ.ratePitch", "float")
-    angular_velocity_estimator.add_variable("stateEstimateZ.rateYaw", "float")
-    with SyncLogger(self.scf, angular_velocity_estimator) as logger:
-      for entry in logger:
-        state_msg.angular_velocity[0] = entry[1]['stateEstimateZ.rateRoll']
-        state_msg.angular_velocity[1] = entry[1]['stateEstimateZ.ratePitch']
-        state_msg.angular_velocity[2] = entry[1]['stateEstimateZ.rateYaw']
-        break
-    
-    if(self.multiranger):
-      state_msg.multiranger[0] = self.multiranger_sensor.front
-      state_msg.multiranger[1] = self.multiranger_sensor.back
-      state_msg.multiranger[2] = self.multiranger_sensor.left
-      state_msg.multiranger[3] = self.multiranger_sensor.right
-      state_msg.multiranger[4] = self.multiranger_sensor.up
-    
-    return state_msg
+    self.state.mr_front = self.multiranger_sensor.front
+    self.state.mr_right = self.multiranger_sensor.right
+    self.state.mr_back = self.multiranger_sensor.back
+    self.state.mr_left = self.multiranger_sensor.left
+    self.state.mr_up = self.multiranger_sensor.up
+        
+    return self.state
   
+  
+  def setup_estimators(self):
+    pose_estimator = LogConfig(name="Pose", period_in_ms=10)
+    pose_estimator.add_variable("stateEstimate.x", "float")
+    pose_estimator.add_variable("stateEstimate.y", "float")
+    pose_estimator.add_variable("stateEstimate.z", "float")
+    pose_estimator.add_variable("stabilizer.roll", "float")
+    pose_estimator.add_variable("stabilizer.pitch", "float")
+    pose_estimator.add_variable("stabilizer.yaw", "float")
+    pose_estimator_logger = SyncLogger(self.scf, pose_estimator)
+    pose_estimator_logger.connect()
+    self.estimators['pose'] = pose_estimator_logger
+    
+    velocity_estimator = LogConfig(name="velocity", period_in_ms=10)
+    velocity_estimator.add_variable("stateEstimate.vx", "float")
+    velocity_estimator.add_variable("stateEstimate.vy", "float")
+    velocity_estimator.add_variable("stateEstimate.vz", "float")
+    velocity_estimator.add_variable("stateEstimateZ.rateRoll", "float")
+    velocity_estimator.add_variable("stateEstimateZ.ratePitch", "float")
+    velocity_estimator.add_variable("stateEstimateZ.rateYaw", "float")
+    velocity_estimator_logger = SyncLogger(self.scf, velocity_estimator)
+    velocity_estimator_logger.connect()
+    self.estimators['velocity'] = velocity_estimator_logger
+    
+  def destroy_estimators(self):
+    for estimator in self.estimators.values():
+      estimator.disconnect()
   
   #* Estimator Reset   
   def reset_estimator(self):
