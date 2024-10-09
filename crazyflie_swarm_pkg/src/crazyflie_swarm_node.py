@@ -5,7 +5,7 @@ import rclpy
 from rclpy.node import Node, Subscription, Publisher
 from std_msgs.msg import Float32
 
-from crazyflie_swarm_interfaces.msg import CrazyflieState
+from crazyflie_swarm_interfaces.msg import CrazyflieState, CrazyflieVelocity
 from crazyflie_swarm_interfaces.srv import TakeOff, Land
 
 from script.config import SwarmConfig, load_config
@@ -43,6 +43,10 @@ class CrazyflieSwarmNode(Node):
     self.led_subscribers: Dict[str, Subscription] = {}
     for name, _ in self.swarm.items():
       self.led_subscribers[name] = self.create_subscription(Float32, f'/{name}/led', lambda msg, name=name: self.led_callback(msg, name), 10)
+      
+    self.velocity_subscribers: Dict[str, Subscription] = {}
+    for name, _ in self.swarm.items():
+      self.velocity_subscribers[name] = self.create_subscription(CrazyflieVelocity, f'/{name}/velocity', lambda msg, name=name: self.velocity_callback(msg, name), 10)
     
             
     #* Publishers
@@ -62,7 +66,7 @@ class CrazyflieSwarmNode(Node):
 
   #* Subscribers Callbacks
   def led_callback(self, msg, name: str) -> None:    
-    self.get_logger().info(f'Received message: {msg.data} for robot: {name}')
+    # self.get_logger().info(f'Received message: {msg.data} for robot: {name}')
     try:
       self.swarm[name].set_led(int(msg.data))
       
@@ -70,9 +74,17 @@ class CrazyflieSwarmNode(Node):
       self.get_logger().error(f'Error in led_callback: {e}')
   
   def velocity_callback(self, msg, name: str) -> None:
-    self.get_logger().info(f'Received message: {msg.vx}, {msg.vy}, {msg.vz}, {msg.yawrate} for robot: {name}')
+    velocity_x = msg.linear_velocity[0]
+    velocity_y = msg.linear_velocity[1]
+    velocity_z = msg.linear_velocity[2]
+    roll_rate = msg.angular_velocity[0]
+    pitch_rate = msg.angular_velocity[1]
+    yaw_rate = msg.angular_velocity[2]
+    
+    self.get_logger().info(f'Received message: {velocity_x:.2f}, {velocity_y:.2f}, {velocity_z:.2f}, {yaw_rate:.2f} for robot: {name}')
     try:
-      self.swarm[name].set_velocity(msg.vx, msg.vy, msg.vz, msg.yawrate)   
+      self.swarm[name].set_velocity(velocity_x, velocity_y, velocity_z, yaw_rate)
+      pass
       
     except Exception as e:
       self.get_logger().error(f'Error in velocity_callback: {e}')

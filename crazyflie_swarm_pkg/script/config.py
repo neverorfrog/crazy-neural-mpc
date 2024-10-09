@@ -21,6 +21,7 @@ class SwarmConfig:
   dt: float = field(default=0.01)
   state_publisher_rate: float = field(default=10.0)
   led_publisher_rate: float = field(default=1.0)
+  velocity_publisher_rate: float = field(default=1.0)
   crazyflies: List[CrazyflieConfig] = field(default_factory=list[CrazyflieConfig])
 
 T = TypeVar('T')
