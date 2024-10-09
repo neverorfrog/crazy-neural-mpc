@@ -9,6 +9,8 @@ from rclpy.node import Node, Publisher, Subscription
 from std_msgs.msg import Float32
 from geometry_msgs.msg import Twist
 
+from std_srvs.srv import Empty
+
 class CrazyflieDock(Node):
   def __init__(self):
     super().__init__('crazyflie_dock_node')
@@ -40,11 +42,17 @@ class CrazyflieDock(Node):
     for name, _ in self.swarm.items():
       publisher = self.create_publisher(CrazyflieVelocity, f'/{name}/velocity', 10)
       self.velocity_publishers[name] = publisher
-      # self.create_timer(1/velocity_publisher_rate, lambda name=name, publisher=publisher: self.velocity_callback(name, publisher))
+      self.create_timer(1/velocity_publisher_rate, lambda name=name, publisher=publisher: self.velocity_callback(name, publisher))
       
     #* Subscriptions
     self.cmd_vel_subscriber = self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback, 10)
-        
+    self.current_cmd_vel = Twist()    
+    
+    #* Services
+    self.start_service = self.create_service(Empty, 'start', self.start_callback)
+    self.stop_service = self.create_service(Empty, 'stop', self.stop_callback)
+    self.is_moving = False
+      
     self.k1 = 0
     self.k2 = 0
     self.k3 = 0
@@ -66,18 +74,43 @@ class CrazyflieDock(Node):
     publisher.publish(intensity)
     
   def cmd_vel_callback(self, msg: Twist) -> None:
-    cmd_vel = msg
+    self.current_cmd_vel = msg
+      
+  def velocity_callback(self, name: str, publisher: Publisher) -> None:
     velocity_msg = CrazyflieVelocity()
     velocity_msg.header.stamp = self.get_clock().now().to_msg()
-    velocity_msg.linear_velocity[0] = cmd_vel.linear.x
-    velocity_msg.linear_velocity[1] = cmd_vel.linear.y
-    velocity_msg.linear_velocity[2] = cmd_vel.linear.z
+    velocity_msg.linear_velocity[0] = self.current_cmd_vel.linear.x
+    velocity_msg.linear_velocity[1] = self.current_cmd_vel.linear.y
+    velocity_msg.linear_velocity[2] = 0.0
     velocity_msg.angular_velocity[0] = 0.0
     velocity_msg.angular_velocity[1] = 0.0
-    velocity_msg.angular_velocity[2] = cmd_vel.angular.z
-    for name, publisher in self.velocity_publishers.items():
-      publisher.publish(velocity_msg)
+    velocity_msg.angular_velocity[2] = self.current_cmd_vel.angular.z
+      
+    # if name=='cf1':
+    #   velocity_msg.linear_velocity[0] = 0.15 if self.is_moving else 0.0 
+    #   velocity_msg.linear_velocity[1] = 0.0
+    #   velocity_msg.linear_velocity[2] = 0.0
+    #   velocity_msg.angular_velocity[0] = 0.0
+    #   velocity_msg.angular_velocity[1] = 0.0
+    #   velocity_msg.angular_velocity[2] = 0.0
+      
+    # elif name=='cf2':
+    #   velocity_msg.linear_velocity[0] = -0.15 if self.is_moving else 0.0
+    #   velocity_msg.linear_velocity[1] = 0.0
+    #   velocity_msg.linear_velocity[2] = 0.0
+    #   velocity_msg.angular_velocity[0] = 0.0
+    #   velocity_msg.angular_velocity[1] = 0.0
+    #   velocity_msg.angular_velocity[2] = 0.0
     
+    publisher.publish(velocity_msg)
+    
+  def start_callback(self, request, response) -> Empty.Response:
+    self.is_moving = True
+    return response
+  
+  def stop_callback(self, request, response) -> Empty.Response:
+    self.is_moving = False
+    return response
     
 def main(args=None):
     rclpy.init(args=args)

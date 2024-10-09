@@ -2,7 +2,7 @@ import time
 from typing import Dict
 
 import rclpy
-from rclpy.node import Node, Subscription, Publisher
+from rclpy.node import Node, Subscription, Publisher, Timer
 from std_msgs.msg import Float32
 
 from crazyflie_swarm_interfaces.msg import CrazyflieState, CrazyflieVelocity
@@ -61,31 +61,33 @@ class CrazyflieSwarmNode(Node):
     #* Services
     self.take_off_service = self.create_service(TakeOff, '/take_off', self.take_off_service_callback)
     self.land_service = self.create_service(Land, '/land', self.land_service_callback)
-
-
-
+    
+    #* Timers
+    for name, _ in self.swarm.items():
+      self.create_timer(0.1, lambda name=name: self.update_robot(name))
+      
+      
+  #*Timers Callbacks
+  def update_robot(self, name) -> None:
+    self.swarm[name].update()
+      
   #* Subscribers Callbacks
   def led_callback(self, msg, name: str) -> None:    
-    # self.get_logger().info(f'Received message: {msg.data} for robot: {name}')
     try:
       self.swarm[name].set_led(int(msg.data))
       
     except Exception as e:
       self.get_logger().error(f'Error in led_callback: {e}')
-  
+
   def velocity_callback(self, msg, name: str) -> None:
     velocity_x = msg.linear_velocity[0]
     velocity_y = msg.linear_velocity[1]
-    velocity_z = msg.linear_velocity[2]
-    roll_rate = msg.angular_velocity[0]
-    pitch_rate = msg.angular_velocity[1]
     yaw_rate = msg.angular_velocity[2]
     
-    self.get_logger().info(f'Received message: {velocity_x:.2f}, {velocity_y:.2f}, {velocity_z:.2f}, {yaw_rate:.2f} for robot: {name}')
     try:
-      self.swarm[name].set_velocity(velocity_x, velocity_y, velocity_z, yaw_rate)
+      self.swarm[name].set_velocity(velocity_x, velocity_y, yaw_rate)
       pass
-      
+    
     except Exception as e:
       self.get_logger().error(f'Error in velocity_callback: {e}')
             
@@ -93,6 +95,7 @@ class CrazyflieSwarmNode(Node):
   def state_callback(self, name, publisher) -> None: 
     try:
       state = self.swarm[name].get_state()
+      
       state_msg = CrazyflieState()  
       
       state_msg.position[0] = state.x
@@ -122,12 +125,12 @@ class CrazyflieSwarmNode(Node):
           
   #* Services Callbacks      
   def take_off_service_callback(self, request, response):
-    self.get_logger().info(f'Take off')
     try:
       height = request.height
-      velocity = request.velocity 
+      duration = request.duration 
+      self.get_logger().info(f'Take off at {height}m for {duration}s')
       for name, cf in self.swarm.items():
-        cf.take_off(height, velocity)
+        cf.take_off(height, duration)
       response.success = True
 
     except Exception as e:
@@ -137,11 +140,11 @@ class CrazyflieSwarmNode(Node):
     return response
   
   def land_service_callback(self, request, response):
-    self.get_logger().info(f'Land')
     try:
-      velocity = request.velocity
+      self.get_logger().info(f'Land at 0m for {request.duration}s')
+      duration = request.duration
       for name, cf in self.swarm.items():
-        cf.land(velocity)
+        cf.land(duration)
       response.success = True
 
     except Exception as e:
