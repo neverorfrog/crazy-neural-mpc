@@ -2,3 +2,4 @@ empy==3.3.4
 numpy
 catkin_pkg
 lark
+cflib
