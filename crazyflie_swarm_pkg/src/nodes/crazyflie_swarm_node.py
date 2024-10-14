@@ -4,12 +4,12 @@ from typing import Dict
 import cflib.crtp as crtp
 import rclpy
 from rclpy.node import Node, Publisher, Subscription
-from script.config import SwarmConfig, load_config
-from script.crazyflie_robot import CrazyflieRobot
 from std_msgs.msg import Float32
 
 from crazyflie_swarm_interfaces.msg import CrazyflieState, CrazyflieVelocity
 from crazyflie_swarm_interfaces.srv import Land, TakeOff
+from utils.config import SwarmConfig, load_config
+from utils.crazyflie_robot import CrazyflieRobot
 
 
 class CrazyflieSwarmNode(Node):
@@ -17,13 +17,13 @@ class CrazyflieSwarmNode(Node):
         super().__init__("crazyflie_swarm_node")
         self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
-        self.declare_parameter("config_path", "")
-        config_path = (
-            self.get_parameter("config_path")
+        self.declare_parameter("swarm_config_path", "")
+        swarm_config_path = (
+            self.get_parameter("swarm_config_path")
             .get_parameter_value()
             .string_value
         )
-        config = load_config(config_path, SwarmConfig)
+        config = load_config(swarm_config_path, SwarmConfig)
         self.config = config
 
         self.get_logger().info("CrazyflieSwarmNode started with parameters:")

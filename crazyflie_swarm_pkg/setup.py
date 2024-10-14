@@ -8,7 +8,8 @@ package_name = "crazyflie_swarm_pkg"
 setup(
     name=package_name,
     version="0.0.0",
-    packages=find_packages(exclude=["test"]),
+    packages=find_packages("src",exclude=["test"]),
+    package_dir={'': 'src'},
     data_files=[
         (
             "share/ament_index/resource_index/packages",
@@ -30,8 +31,8 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "crazyflie_swarm_exec = src.crazyflie_swarm_node:main",
-            "crazyflie_dock_exec = src.crazyflie_dock_node:main",
+            "crazyflie_swarm_exec = nodes.crazyflie_swarm_node:main",
+            "crazyflie_dock_exec = nodes.crazyflie_dock_node:main",
         ],
     },
 )

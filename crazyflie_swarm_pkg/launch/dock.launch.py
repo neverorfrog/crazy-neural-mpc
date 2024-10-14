@@ -14,7 +14,9 @@ def generate_launch_description():
         package="crazyflie_swarm_pkg",
         name="crazyflie_dock_node",
         executable="crazyflie_dock_exec",
-        parameters=[{"config_path": os.path.join(root, "config/config.yaml")}],
+        parameters=[
+            {"swarm_config_path": os.path.join(root, "config/config.yaml")}
+        ],
     )
 
     ld.add_action(dock)

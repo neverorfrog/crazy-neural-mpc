@@ -3,11 +3,11 @@ from typing import Any, Dict
 import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node, Publisher
-from script.config import SwarmConfig, load_config
 from std_msgs.msg import Float32
 from std_srvs.srv import Empty
 
 from crazyflie_swarm_interfaces.msg import CrazyflieVelocity
+from utils.config import SwarmConfig, load_config
 
 
 class CrazyflieDock(Node):
@@ -16,15 +16,15 @@ class CrazyflieDock(Node):
         self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
         # * Load Config
-        self.declare_parameter("config_path", "")
-        config_path = (
-            self.get_parameter("config_path")
+        self.declare_parameter("swarm_config_path", "")
+        swarm_config_path = (
+            self.get_parameter("swarm_config_path")
             .get_parameter_value()
             .string_value
         )
-        config = load_config(config_path, SwarmConfig)
+        config = load_config(swarm_config_path, SwarmConfig)
         self.config = config
-        
+
         self.get_logger().info("CrazyflieDockNode started")
         for cf_config in self.config.crazyflies:
             self.get_logger().info(f"  - {cf_config.name}: {cf_config.uri}")

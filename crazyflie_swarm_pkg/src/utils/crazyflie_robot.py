@@ -7,8 +7,9 @@ from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils.multiranger import Multiranger
-from script.crazyflie_state import CrazyState
-from script.utils import log
+
+from utils.crazyflie_state import CrazyState
+from utils.utils import log
 
 
 class CrazyflieRobot:
