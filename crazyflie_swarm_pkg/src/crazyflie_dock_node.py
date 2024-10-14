@@ -17,13 +17,13 @@ class CrazyflieDock(Node):
         self.get_logger().info("CrazyflieDockNode started")
 
         # * Load Config
-        self.declare_parameter("package_path", "")
-        root = (
-            self.get_parameter("package_path")
+        self.declare_parameter("config_path", "")
+        config_path = (
+            self.get_parameter("config_path")
             .get_parameter_value()
             .string_value
         )
-        config = load_config(f"{root}/config/config.yaml", SwarmConfig)
+        config = load_config(config_path, SwarmConfig)
         self.config = config
 
         # * CrazyflieSwarm
