@@ -14,7 +14,6 @@ class CrazyflieDock(Node):
     def __init__(self):
         super().__init__("crazyflie_dock_node")
         self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
-        self.get_logger().info("CrazyflieDockNode started")
 
         # * Load Config
         self.declare_parameter("config_path", "")
@@ -25,6 +24,10 @@ class CrazyflieDock(Node):
         )
         config = load_config(config_path, SwarmConfig)
         self.config = config
+        
+        self.get_logger().info("CrazyflieDockNode started")
+        for cf_config in self.config.crazyflies:
+            self.get_logger().info(f"  - {cf_config.name}: {cf_config.uri}")
 
         # * CrazyflieSwarm
         self.swarm: Dict[str] = {}
