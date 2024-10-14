@@ -7,7 +7,7 @@ from std_msgs.msg import Float32
 from std_srvs.srv import Empty
 
 from crazyflie_swarm_interfaces.msg import CrazyflieVelocity
-from utils.config import SwarmConfig, load_config
+from crazyflie_swarm_pkg.configuration import SwarmConfig, load_config
 
 
 class CrazyflieDock(Node):

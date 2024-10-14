@@ -8,8 +8,8 @@ package_name = "crazyflie_swarm_pkg"
 setup(
     name=package_name,
     version="0.0.0",
-    packages=find_packages("src",exclude=["test"]),
-    package_dir={'': 'src'},
+    packages=find_packages("src", exclude=["test"]),
+    package_dir={"": "src"},  # Tell setuptools that packages are under src
     data_files=[
         (
             "share/ament_index/resource_index/packages",
