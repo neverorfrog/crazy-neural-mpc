@@ -5,9 +5,7 @@ from geometry_msgs.msg import Twist
 from rclpy.node import Node, Publisher, Subscription
 
 from crazyflie_flocking_pkg.agent import Agent
-from crazyflie_flocking_pkg.crazyflie_flocking_pkg.utils.configuration import (
-    FlockingConfig,
-)
+from crazyflie_flocking_pkg.utils.configuration import FlockingConfig
 from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_pkg.configuration import SwarmConfig
 from crazyflie_swarm_pkg.crazyflie_state import CrazyState

@@ -1,1 +1,3 @@
-from .configuration import FlockingConfig, load_config
+from .configuration import FlockingConfig
+
+__all__ = ["FlockingConfig"]

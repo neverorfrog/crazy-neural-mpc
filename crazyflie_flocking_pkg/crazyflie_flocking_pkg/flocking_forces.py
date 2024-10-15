@@ -1,8 +1,6 @@
 import numpy as np
 
-from crazyflie_flocking_pkg.crazyflie_flocking_pkg.utils.configuration import (
-    FlockingConfig,
-)
+from crazyflie_flocking_pkg.utils.configuration import FlockingConfig
 from crazyflie_flocking_pkg.utils.definitions import Direction
 
 
@@ -103,7 +101,7 @@ class ForcesGenerator:
         omega_scalar = constrained_value(
             omega_scalar, self.omega_min, self.omega_max
         )  # omega_scalar constrained in omega_min and omega_max
-        omega = omega_scalar * vector_orthogonal_to_plane  # omega as 3D vector
+        # omega = omega_scalar * vector_orthogonal_to_plane  # omega as 3D vector
 
         # Omega APF di AMR
         # omega_scalar = self.k_a * (atan2(force[1], force[0])- gamma)
