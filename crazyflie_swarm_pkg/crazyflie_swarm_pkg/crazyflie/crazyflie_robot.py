@@ -8,7 +8,7 @@ from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils.multiranger import Multiranger
 
-from crazyflie_swarm_pkg.crazyflie_state import CrazyState
+from crazyflie_swarm_pkg.crazyflie.crazyflie_state import CrazyState
 from crazyflie_swarm_pkg.utils import log
 
 
