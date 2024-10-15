@@ -7,6 +7,7 @@ class Direction(Enum):
     back = 2
     right = 3
 
+
 class ObjectType(Enum):
     obstacle = 0
     drone = 1

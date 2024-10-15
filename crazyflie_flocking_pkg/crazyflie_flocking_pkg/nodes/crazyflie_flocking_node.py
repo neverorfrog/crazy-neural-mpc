@@ -1,15 +1,17 @@
 from typing import Any, Dict
 
-from crazyflie_swarm_pkg.crazyflie_state import CrazyState
 import rclpy
-from crazyflie_flocking_pkg.agent import Agent
-from crazyflie_flocking_pkg.crazyflie_flocking_pkg.utils.configuration import FlockingConfig
 from geometry_msgs.msg import Twist
 from rclpy.node import Node, Publisher, Subscription
 
-from crazyflie_swarm_pkg.configuration import SwarmConfig
-from crazyflie_swarm_pkg.utils import load_config
+from crazyflie_flocking_pkg.agent import Agent
+from crazyflie_flocking_pkg.crazyflie_flocking_pkg.utils.configuration import (
+    FlockingConfig,
+)
 from crazyflie_swarm_interfaces.msg import CrazyflieState
+from crazyflie_swarm_pkg.configuration import SwarmConfig
+from crazyflie_swarm_pkg.crazyflie_state import CrazyState
+from crazyflie_swarm_pkg.utils import load_config
 
 
 class CrazyflieFlocking(Node):  # type: ignore

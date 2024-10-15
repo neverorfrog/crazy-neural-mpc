@@ -1,9 +1,13 @@
 from typing import Type, TypeVar
-import yaml
-from rclpy.impl.rcutils_logger import RcutilsLogger
-from omegaconf import OmegaConf
 
-def log(message="", ros2_logger: RcutilsLogger = None, ros2_logger_level="info") -> None:
+import yaml
+from omegaconf import OmegaConf
+from rclpy.impl.rcutils_logger import RcutilsLogger
+
+
+def log(
+    message="", ros2_logger: RcutilsLogger = None, ros2_logger_level="info"
+) -> None:
     if ros2_logger is None:
         print(message)
         return
@@ -21,7 +25,10 @@ def log(message="", ros2_logger: RcutilsLogger = None, ros2_logger_level="info")
 
     return
 
+
 T = TypeVar("T")
+
+
 def load_config(file_path: str, config_class: Type[T]) -> T:
     """
     Load configuration from a YAML file and merge it into a configuration object of the specified class.

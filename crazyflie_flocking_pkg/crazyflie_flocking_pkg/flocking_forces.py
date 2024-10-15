@@ -1,18 +1,17 @@
 import numpy as np
+
+from crazyflie_flocking_pkg.crazyflie_flocking_pkg.utils.configuration import (
+    FlockingConfig,
+)
 from crazyflie_flocking_pkg.utils.definitions import Direction
-from crazyflie_flocking_pkg.crazyflie_flocking_pkg.utils.configuration import FlockingConfig
+
 
 class ForcesGenerator:
     def __init__(self, config: FlockingConfig):
         self.config = config
 
     def get_forces(
-        self,
-        self_pos,
-        self_yaw,
-        robot_positions,
-        obs_dist_dir,
-        v_mig
+        self, self_pos, self_yaw, robot_positions, obs_dist_dir, v_mig
     ):
         # Initialization
         f_inter_robot = np.zeros((3, 1))

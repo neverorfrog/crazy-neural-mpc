@@ -9,7 +9,9 @@ setup(
     name=package_name,
     version="0.0.0",
     packages=find_packages(".", exclude=["test"]),
-    package_dir={"": "."},  # Tell setuptools that packages are under current dir
+    package_dir={
+        "": "."
+    },  # Tell setuptools that packages are under current dir
     data_files=[
         (
             "share/ament_index/resource_index/packages",
