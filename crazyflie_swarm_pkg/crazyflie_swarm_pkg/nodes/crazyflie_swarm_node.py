@@ -8,9 +8,8 @@ from std_msgs.msg import Float32
 
 from crazyflie_swarm_interfaces.msg import CrazyflieState, CrazyflieVelocity
 from crazyflie_swarm_interfaces.srv import Land, TakeOff
-from crazyflie_swarm_pkg.utils import SwarmConfig
 from crazyflie_swarm_pkg.crazyflie import CrazyflieRobot
-from crazyflie_swarm_pkg.utils import load_config
+from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
 
 
 class CrazyflieSwarmNode(Node):

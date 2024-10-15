@@ -1,7 +1,11 @@
+from typing import Dict, List
+
 import numpy as np
 
+from crazyflie_flocking_pkg.utils import get_clipper, get_versor
 from crazyflie_flocking_pkg.utils.configuration import FlockingConfig
-from crazyflie_flocking_pkg.utils.definitions import Direction
+from crazyflie_flocking_pkg.utils.definitions import Direction, Obstacle
+from crazyflie_swarm_pkg.crazyflie import CrazyState
 
 
 class ForcesGenerator:
@@ -9,31 +13,45 @@ class ForcesGenerator:
         self.config = config
 
     def get_forces(
-        self, self_pos, self_yaw, robot_positions, obs_dist_dir, v_mig
+        self,
+        state: CrazyState,
+        neighbors: Dict[str, CrazyState],
+        detected_obstacles: List[Obstacle],
+        v_mig,
     ):
         # Initialization
         f_inter_robot = np.zeros((3, 1))
         f_obstacle = np.zeros((3, 1))
         f_migration = np.zeros((3, 1))
 
+        self_pos = state.get_position()
+
         # Inter-robot forces, formula (2)
-        for p in robot_positions:
-            p = np.reshape(p, (3, 1))
-            distance = np.linalg.norm(p - self_pos) - 2 * self.radius
-            if distance > 2 * self.d_eq:
+        for name, neighbor in neighbors.items():
+            n_pos = neighbor.get_position()
+            neighbor_distance = (
+                np.linalg.norm(n_pos - self_pos)
+                - 2 * self.config.dimensions.radius
+            )
+            if neighbor_distance > 2 * self.config.dimensions.d_eq:
                 continue
-            u_ij = normalize(p - self_pos)
-            f_inter_robot += self.k_r * (distance - self.d_eq) * u_ij
+            u_ij = get_versor(n_pos - self_pos)
+            f_inter_robot += (
+                self.config.gains.k_r
+                * (neighbor_distance - self.config.dimensions.d_eq)
+                * u_ij
+            )
         f_inter_robot[2] = 0
 
         # Obstacle avoidance forces, formula (3)
-        for o in obs_dist_dir:
-            dist = o[0]
-            dir = o[1]
+        for o in detected_obstacles:
+            obstacle_distance = o.rel_pos - self.config.dimensions.radius
+            d_0 = (
+                self.config.dimensions.max_vis_objs
+                - self.config.dimensions.radius
+            )
 
-            distance_ik = dist - self.radius
-            d_0 = self.max_vis_objs - self.radius
-
+            self_yaw = state.yaw
             R = np.array(
                 [
                     [np.cos(self_yaw), -np.sin(self_yaw), 0],
@@ -42,70 +60,77 @@ class ForcesGenerator:
                 ]
             )
 
-            if dir == Direction.front:
+            if o.direction == Direction.front:
                 u_ik = R @ np.array([1, 0, 0])
-            elif dir == Direction.back:
+            elif o.direction == Direction.back:
                 u_ik = R @ np.array([-1, 0, 0])
-            elif dir == Direction.left:
+            elif o.direction == Direction.left:
                 u_ik = R @ np.array([0, 1, 0])
-            elif dir == Direction.right:
+            elif o.direction == Direction.right:
                 u_ik = R @ np.array([0, -1, 0])
 
             u_ik = np.reshape(u_ik, (3, 1))
-            # f_obstacle += -self.k_o * (1/(distance_ik)**2)* u_ik               # f_obs originale
-            # f_obstacle += -self.k_o * (1/(distance_ik)**2 - 1/(d_0)**2)* u_ik  # f_obs continua
-            f_obstacle += (
-                -self.k_o * (1 / (distance_ik) - 1 / (d_0)) ** 2 * u_ik
-            )  # f_obs APF
+
+            # contr = -self.k_o * (1/(obstacle_distance)**2)* u_ik               # f_obs originale
+            # contr = -self.k_o * (1/(obstacle_distance)**2 - 1/(d_0)**2)* u_ik  # f_obs continua
+            # contr = -self.k_o * (1/(obstacle_distance) - 1/(d_0))**2 * u_ik     # f_obs APF
+            contr = (
+                1 / 3 * (obstacle_distance - d_0) / obstacle_distance**0.5
+            )  # f_obs Luca
+
+            f_obstacle += self.config.gains.k_o * contr * u_ik
+
         f_obstacle[2] = 0
 
         # Migration force, formula (4)
         v_mig = np.reshape(v_mig, (3, 1))
-        f_migration = self.k_m * v_mig
+        f_migration = self.config.gains.k_m * v_mig
 
-        # Alignment control (Self-organized flocking with a mobile robot swarm: a novel motion control method)
-        """f_alignment = np.array([cos(self_yaw), sin(self_yaw), 0])
-        for theta_i in robot_orientations:
-            e_i_theta = np.array([cos(theta_i), sin(theta_i), 0])
-            f_alignment += e_i_theta
-        f_alignment = normalize(f_alignment)
-        f_alignment = self.k_al * np.reshape(np.array(f_alignment), (3,1))"""
+        # Clip forces
+        forces = np.hstack((f_inter_robot, f_obstacle, f_migration))
+        overall_force = np.sum(forces, axis=1)
+        clipper = get_clipper(overall_force, self.config.bounds.force_max)
+        forces = forces / clipper
 
-        return np.hstack(
-            (f_inter_robot, f_obstacle, f_migration)
-        )  # , f_alignment))
+        return forces
 
     def force_limit(self, force):
         force_norm = np.linalg.norm(force)
-        force_norm_constrained = constrained_value(
-            force_norm, 0.0, self.max_force
+        force_norm_constrained = np.clip(
+            force_norm, 0.0, self.config.bounds.force_max
         )
         return force * (force_norm_constrained / force_norm)
 
-    def compute_velocities(self, force, u_i, gamma=0):
-        vector_orthogonal_to_plane = np.array([[0], [0], [1]])
+    def compute_velocities(
+        self,
+        force: float,
+        state: CrazyState,
+        neighbors: Dict[str, CrazyState],
+        target: np.ndarray,
+    ):
+        force = np.clip(
+            force, -self.config.bounds.force_max, self.config.bounds.force_max
+        )
+        target_yaw = (
+            np.arctan2(target[1] - state.y, target[0] - state.x) - state.yaw
+        )
 
-        # Linear speed, formulas (5), (7)
-        v_scalar = self.k_l * (np.dot(force, u_i))
-        v_scalar = constrained_value(
-            v_scalar, self.v_min, self.v_max
-        )  # v_scalar constrained in v-min and v_max
-        v = v_scalar  # * u_i
-        # v = self.k_l * force
-        # v = self.constraint_vel(v)
+        # Compute the yaw mean
+        yaw_mean = state.yaw
+        for _, neighbor in neighbors.items():
+            yaw_mean += neighbor.yaw
+        yaw_mean += target_yaw
+        yaw_mean /= len(neighbors) + 2
 
-        # Angular speed, formulas (6), (8)
-        # u_i_orthogonal computed as vector orthogonal to u_i and vector_orthogonal_to_plane (z axis)
-        u_i_orthogonal = np.cross(vector_orthogonal_to_plane[:, 0], u_i[:, 0])
-        omega_scalar = self.k_a * (np.dot(force, u_i_orthogonal))
-        omega_scalar = constrained_value(
-            omega_scalar, self.omega_min, self.omega_max
-        )  # omega_scalar constrained in omega_min and omega_max
-        # omega = omega_scalar * vector_orthogonal_to_plane  # omega as 3D vector
+        # Compute velocities
+        v = self.config.gains.k_l * force
+        v = np.clip(v, -self.config.bounds.v_max, self.config.bounds.v_max)
+        omega = self.config.gains.k_a * (yaw_mean - state.yaw)
+        omega = np.clip(
+            omega, -self.config.bounds.omega_max, self.config.bounds.omega_max
+        )
 
-        # Omega APF di AMR
-        # omega_scalar = self.k_a * (atan2(force[1], force[0])- gamma)
-        return [v, omega_scalar]
+        return [v, omega]
 
     def constraint_vel(self, v):
         normalizer = np.linalg.norm(v) / self.v_max
@@ -114,17 +139,3 @@ class ForcesGenerator:
             return v / normalizer
         else:
             return v
-
-
-def normalize(vector):
-    # Given a vector, return the versor
-    norm_vector = np.linalg.norm(vector)
-    if norm_vector < 1e-14:
-        print("Error: vector 0, impossible to normalize")
-        return vector
-    return vector / norm_vector
-
-
-def constrained_value(val, val_min, val_max):
-    # If val is out of range [v_min; v_max], return one of the 2 extremes
-    return float(min(max(val_min, val), val_max))

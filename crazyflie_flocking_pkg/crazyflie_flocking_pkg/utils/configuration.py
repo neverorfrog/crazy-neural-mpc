@@ -7,7 +7,7 @@ from omegaconf import MISSING
 class DimensionsConfig:
     d_eq: float = MISSING
     radius: float = MISSING
-    max_vis_objs: float = MISSING
+    max_vis_objs: float = MISSING  # Max distance of visibility [m]
 
 
 @dataclass
@@ -21,12 +21,14 @@ class GainsConfig:
 
 
 @dataclass
-class VelocitiesConfig:
+class BoundsConfig:
     v_min: float = MISSING
     v_max: float = MISSING
     omega_min: float = MISSING
     omega_max: float = MISSING
     a_max: float = MISSING
+    force_max: float = MISSING
+    angle_offset_max: float = MISSING
 
 
 @dataclass
@@ -40,5 +42,5 @@ class AgentConfig:
 class FlockingConfig:
     dimensions: DimensionsConfig = field(default_factory=DimensionsConfig)
     gains: GainsConfig = field(default_factory=GainsConfig)
-    velocities: VelocitiesConfig = field(default_factory=VelocitiesConfig)
+    bounds: BoundsConfig = field(default_factory=BoundsConfig)
     agent: AgentConfig = field(default_factory=AgentConfig)

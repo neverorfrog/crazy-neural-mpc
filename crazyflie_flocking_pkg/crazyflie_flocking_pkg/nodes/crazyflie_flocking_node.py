@@ -7,12 +7,11 @@ from rclpy.node import Node, Publisher, Subscription
 from crazyflie_flocking_pkg.agent import Agent
 from crazyflie_flocking_pkg.utils.configuration import FlockingConfig
 from crazyflie_swarm_interfaces.msg import CrazyflieState
-from crazyflie_swarm_pkg.configuration import SwarmConfig
-from crazyflie_swarm_pkg.crazyflie_state import CrazyState
-from crazyflie_swarm_pkg.utils import load_config
+from crazyflie_swarm_pkg.crazyflie import CrazyState
+from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
 
 
-class CrazyflieFlocking(Node):  # type: ignore
+class CrazyflieFlockingNode(Node):  # type: ignore
     def __init__(self):
         super().__init__("crazyflie_dock_node")
         self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
@@ -86,6 +85,8 @@ class CrazyflieFlocking(Node):  # type: ignore
         velocities computed by the flocking algorithm and sends them to the dock
         node.
         """
+        target = [0, 0, self.swarm_config.crazyflies[0].height]
+        v, yaw_rate = self.agents[name].compute_velocities(self.swarm_state)
         cmd_vel = Twist()
         cmd_vel.linear.x = 0.0
         cmd_vel.linear.y = 0.0
@@ -105,7 +106,7 @@ class CrazyflieFlocking(Node):  # type: ignore
 
 def main(args: Any = None) -> None:
     rclpy.init(args=args)
-    crazyflie_node = CrazyflieFlocking()
+    crazyflie_node = CrazyflieFlockingNode()
     rclpy.spin(crazyflie_node)
     crazyflie_node.destroy_node()
     rclpy.shutdown()
