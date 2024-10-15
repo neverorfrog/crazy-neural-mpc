@@ -35,14 +35,33 @@ class Agent:
         # TODO: per ora si mettono solo in formazione
         v_mig = np.array([0, 0, 0])
 
+        # Guess what
         detected_obstacles = self.detect_obstacles(state, neighbors)
 
+        # Compute the forces
         forces = self.forces_gen.get_forces(
             state, neighbors, detected_obstacles, v_mig
         )
-        overall_force = np.sum(forces, axis=1)
-        v, omega = self.forces_gen.compute_velocities(
-            overall_force, state, neighbors, target
+        overall_force = np.clip(
+            np.sum(forces, axis=1), -self.config.bounds.force_max, self.config.bounds.force_max
+        )
+
+        # Compute the yaw mean
+        target_yaw = (
+            np.arctan2(target[1] - state.y, target[0] - state.x) - state.yaw
+        )
+        yaw_mean = state.yaw
+        for _, neighbor in neighbors.items():
+            yaw_mean += neighbor.yaw
+        yaw_mean += target_yaw
+        yaw_mean /= len(neighbors) + 2
+
+        # Compute velocities
+        v = self.config.gains.k_l * overall_force
+        v = np.clip(v, -self.config.bounds.v_max, self.config.bounds.v_max)
+        omega = self.config.gains.k_a * (yaw_mean - state.yaw)
+        omega = np.clip(
+            omega, -self.config.bounds.omega_max, self.config.bounds.omega_max
         )
 
         return v, omega
