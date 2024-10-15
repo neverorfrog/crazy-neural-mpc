@@ -1,4 +1,4 @@
-from configuration import CrazyflieConfig, SwarmConfig
+from .configuration import CrazyflieConfig, SwarmConfig
 
 from .utils import load_config, log
 

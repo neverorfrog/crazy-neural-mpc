@@ -11,8 +11,13 @@ crazyflies:
   - name: cf2
     uri: radio://0/80/2M/E7E7E7E7E8
     height: 0.3
-    multiranger: True
+    multiranger: False
   - name: cf3
     uri: radio://0/80/2M/E7E7E7E7E9
     height: 0.2
     multiranger: True
+  - name: cf4
+    uri: radio://0/80/2M/E7E7E7E7E6
+    height: 0.2
+    multiranger: False
+    

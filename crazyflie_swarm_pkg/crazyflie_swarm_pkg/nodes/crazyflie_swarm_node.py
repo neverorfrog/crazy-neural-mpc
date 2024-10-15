@@ -8,8 +8,8 @@ from std_msgs.msg import Float32
 
 from crazyflie_swarm_interfaces.msg import CrazyflieState, CrazyflieVelocity
 from crazyflie_swarm_interfaces.srv import Land, TakeOff
-from crazyflie_swarm_pkg.configuration import SwarmConfig
-from crazyflie_swarm_pkg.crazyflie_robot import CrazyflieRobot
+from crazyflie_swarm_pkg.utils import SwarmConfig
+from crazyflie_swarm_pkg.crazyflie import CrazyflieRobot
 from crazyflie_swarm_pkg.utils import load_config
 
 
@@ -114,7 +114,7 @@ class CrazyflieSwarmNode(Node):
         yaw_rate = msg.angular_velocity[2]
 
         try:
-            self.swarm[name].set_velocity(velocity_x, velocity_y, yaw_rate)
+            # self.swarm[name].set_velocity(velocity_x, velocity_y, yaw_rate)
             pass
 
         except Exception as e:
