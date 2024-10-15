@@ -1,32 +1,27 @@
-from dataclasses import dataclass, field
-from typing import List, Type, TypeVar
-
+from typing import Type, TypeVar
 import yaml
-from omegaconf import MISSING, OmegaConf
+from rclpy.impl.rcutils_logger import RcutilsLogger
+from omegaconf import OmegaConf
 
+def log(message="", ros2_logger: RcutilsLogger = None, ros2_logger_level="info") -> None:
+    if ros2_logger is None:
+        print(message)
+        return
 
-@dataclass
-class CrazyflieConfig:
-    name: str = MISSING
-    uri: str = MISSING
-    height: float = MISSING
-    multiranger: bool = False
+    if ros2_logger_level == "info":
+        ros2_logger.info(message)
+    elif ros2_logger_level == "warn":
+        ros2_logger.warn(message)
+    elif ros2_logger_level == "error":
+        ros2_logger.error(message)
+    elif ros2_logger_level == "debug":
+        ros2_logger.debug(message)
+    else:
+        ros2_logger.info(message)
 
-
-@dataclass
-class SwarmConfig:
-    dt: float = field(default=0.01)
-    state_publisher_rate: float = field(default=10.0)
-    led_publisher_rate: float = field(default=1.0)
-    velocity_publisher_rate: float = field(default=1.0)
-    crazyflies: List[CrazyflieConfig] = field(
-        default_factory=list[CrazyflieConfig]
-    )
-
+    return
 
 T = TypeVar("T")
-
-
 def load_config(file_path: str, config_class: Type[T]) -> T:
     """
     Load configuration from a YAML file and merge it into a configuration object of the specified class.

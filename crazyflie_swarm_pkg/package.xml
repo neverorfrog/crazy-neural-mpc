@@ -7,6 +7,7 @@
   <maintainer email="spagnoli.valerio.00@gmail.com">Valerio Spagnoli</maintainer>
   <license>Apache-2.0</license>
   
+  <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_python</buildtool_depend>
 
   <exec_depend>rclpy</exec_depend>
