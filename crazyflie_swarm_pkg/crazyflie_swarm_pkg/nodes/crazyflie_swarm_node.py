@@ -101,9 +101,11 @@ class CrazyflieSwarmNode(Node):
         for name, _ in self.swarm.items():
             self.create_timer(0.1, lambda name=name: self.update_robot(name))
 
+
     # *Timers Callbacks
     def update_robot(self, name) -> None:
         self.swarm[name].update()
+
 
     # * Subscribers Callbacks
     def led_callback(self, msg, name: str) -> None:
@@ -113,6 +115,7 @@ class CrazyflieSwarmNode(Node):
         except Exception as e:
             self.get_logger().error(f"Error in led_callback: {e}")
 
+
     def velocity_callback(self, msg, name: str) -> None:
         velocity_x = msg.linear.x
         velocity_y = msg.linear.y
@@ -120,8 +123,10 @@ class CrazyflieSwarmNode(Node):
 
         try:
             self.swarm[name].set_velocity(velocity_x, velocity_y, yaw_rate)
+            pass
         except Exception as e:
             self.get_logger().error(f"Error in velocity_callback: {e}")
+
 
     # * Publishers Callbacks
     def state_callback(self, name, publisher) -> None:
@@ -155,6 +160,7 @@ class CrazyflieSwarmNode(Node):
         except Exception as e:
             self.get_logger().error(f"Error in state_callback: {e}")
 
+
     # * Services Callbacks
     def take_off_service_callback(self, request, response):
         try:
@@ -171,6 +177,7 @@ class CrazyflieSwarmNode(Node):
 
         return response
 
+
     def land_service_callback(self, request, response):
         try:
             self.get_logger().info(f"Land at 0m for {request.duration}s")
@@ -184,6 +191,7 @@ class CrazyflieSwarmNode(Node):
             response.success = False
 
         return response
+
 
     # * Destroy Node Handler
     def destroy_node(self):

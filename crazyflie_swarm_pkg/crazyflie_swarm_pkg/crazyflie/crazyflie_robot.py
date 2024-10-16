@@ -32,14 +32,14 @@ class CrazyflieRobot:
         self.default_take_off_height = 0.2
         self.default_take_off_duration = 3
         self.default_land_duration = 3
-
         self.default_height = 0.2
         self.default_velocity = 0.1
+        self.emergency_stop_distance = 0.5
 
         # State
         self.initial_position = initial_position
         self.state = CrazyState()
-        self.estimators: Dict[str, SyncLogger] = {}
+        self.estimators: Dict[str, LogConfig] = {}
 
         # Connection
         self.__connection_timeout = 10  # seconds
@@ -107,13 +107,20 @@ class CrazyflieRobot:
         return True
 
     def destroy(self):
+        # Destroy estimators
+        for estimator in self.estimators.values():
+            estimator.stop()
+        
+        # Destroy multiranger
         self.multiranger_sensor.stop()
         self.multiranger_attached_event.clear()
         self.__multiranger_attached = False
 
+        # Destroy flow deck
         self.flow_deck_attached_event.clear()
         self.__flow_deck_attached = False
 
+        # Close connection
         self.close_connection()
         log(f"Crazyflie {self.name} destroyed", self.logger)
 
@@ -165,7 +172,16 @@ class CrazyflieRobot:
             self.cf.commander.send_stop_setpoint()
             self.is_flying = False
             self.take_off_done = False
-
+            
+        #* Handle multirange
+        if self.multiranger:            
+            if self.multiranger_sensor.front < self.emergency_stop_distance or \
+               self.multiranger_sensor.right < self.emergency_stop_distance or \
+               self.multiranger_sensor.back < self.emergency_stop_distance  or \
+               self.multiranger_sensor.left < self.emergency_stop_distance: 
+                log(f"Emergency stop for Crazyflie {self.name}", self.logger)
+                self.emergency_stop()
+    
     # * Commands
     def take_off(self, absolute_height=None, duration=None):
         if not self.__connection_opened:
@@ -187,6 +203,9 @@ class CrazyflieRobot:
             duration = self.default_land_duration
         self.cf.commander.send_velocity_world_setpoint(0, 0, -0.05, 0)
 
+    def emergency_stop(self):
+        self.cf.commander.send_stop_setpoint()
+
     def set_velocity(self, vx, vy, yaw_rate):
         if not self.__connection_opened:
             raise Exception("Connection not opened")
@@ -201,8 +220,6 @@ class CrazyflieRobot:
             vx, vy, yaw_rate, self.default_take_off_height
         )
 
-    def hover(self):
-        pass
 
     # * Setters
     def set_led(self, intensity):
@@ -244,6 +261,7 @@ class CrazyflieRobot:
             self.pose_estimator_callback
         )
         pose_estimator.start()
+        self.estimators["pose"] = pose_estimator
 
     # * Estimator Reset
     def reset_estimator(self):
