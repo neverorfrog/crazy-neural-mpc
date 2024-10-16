@@ -5,19 +5,41 @@ velocity_publisher_rate: 10.0
 
 crazyflies:
   - name: cf1
-    uri: radio://0/80/2M/E7E7E7E7E7
-    height: 0.2
-    multiranger: True
-  - name: cf2
-    uri: radio://0/80/2M/E7E7E7E7E8
-    height: 0.3
-    multiranger: False
-  - name: cf3
-    uri: radio://0/80/2M/E7E7E7E7E9
-    height: 0.2
-    multiranger: True
-  - name: cf4
+    active: False
     uri: radio://0/80/2M/E7E7E7E7E6
     height: 0.2
     multiranger: False
-    
+    initial_position:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+
+  - name: cf2
+    active: True
+    uri: radio://0/80/2M/E7E7E7E7E7
+    height: 0.2
+    multiranger: True
+    initial_position:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+
+  - name: cf3
+    active: False
+    uri: radio://0/80/2M/E7E7E7E7E8
+    height: 0.3
+    multiranger: True
+    initial_position:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+
+  - name: cf4
+    active: True
+    uri: radio://0/80/2M/E7E7E7E7E9
+    height: 0.2
+    multiranger: True
+    initial_position:
+      x: 0.0
+      y: 0.0
+      z: 0.0

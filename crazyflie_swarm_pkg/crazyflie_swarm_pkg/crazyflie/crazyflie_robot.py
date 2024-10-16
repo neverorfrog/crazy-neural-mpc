@@ -16,15 +16,18 @@ class CrazyflieRobot:
     def __init__(
         self,
         uri,
+        name=None,
         ro_cache=None,
         rw_cache=None,
-        ros2_logger=None,
+        logger=None,
         multiranger=False,
+        initial_position=None,
     ):
         self.uri = uri
+        self.name = name    
         self.cf = Crazyflie(ro_cache=ro_cache, rw_cache=rw_cache)
         self.scf = SyncCrazyflie(self.uri, cf=self.cf)
-        self.ros2_logger = ros2_logger
+        self.logger = logger
 
         self.default_take_off_height = 0.2
         self.default_take_off_duration = 3
@@ -34,6 +37,7 @@ class CrazyflieRobot:
         self.default_velocity = 0.1
 
         # State
+        self.initial_position = initial_position
         self.state = CrazyState()
         self.estimators: Dict[str, SyncLogger] = {}
 
@@ -52,13 +56,13 @@ class CrazyflieRobot:
         self.multiranger_attached_event = Event()
         self.multiranger_attached_event.clear()
         self.multiranger_sensor = Multiranger(self.scf)
-
+        
         self.take_off_done = False
         self.is_flying = False
 
     # * Initialization
     def initialize(self):
-        log(f"Connecting to Crazyflie {self.uri} ...", self.ros2_logger)
+        log(f"Connecting to Crazyflie {self.name} ...", self.logger)
         start_initialization = time.time()
         self.open_connection()
 
@@ -78,28 +82,31 @@ class CrazyflieRobot:
             or (not self.__multiranger_attached and self.multiranger)
         ):
             if time.time() - start_initialization > self.__connection_timeout:
-                log(f"Initialization timeout for {self.uri}", self.ros2_logger)
+                log(f"Initialization timeout for {self.name}", self.logger)
                 self.close_connection()
                 return False
             time.sleep(0.1)
 
-        log(f"Crazyflie {self.uri} connected.", self.ros2_logger)
+        log(f"Crazyflie {self.name} connected.", self.logger)
 
         log(
-            f"Resetting estimators of Crazyflie {self.uri} ...",
-            self.ros2_logger,
+            f"Resetting estimators of Crazyflie {self.name} ...",
+            self.logger,
         )
         self.reset_estimator()
-        log(f"Estimators of Crazyflie {self.uri} reset.", self.ros2_logger)
+        log(
+            f"Estimators of Crazyflie {self.name} reset.", 
+            self.logger
+        )
 
         log(
-            f"Starting estimators of Crazyflie {self.uri} ...",
-            self.ros2_logger,
+            f"Starting estimators of Crazyflie {self.name} ...",
+            self.logger,
         )
         self.setup_estimators()
-        log(f"Estimators of Crazyflie {self.uri} started.", self.ros2_logger)
-
-        log(f"Crazyflie {self.uri} initialized", self.ros2_logger)
+        log(f"Estimators of Crazyflie {self.name} started.", self.logger)
+        
+        log(f"Crazyflie {self.name} initialized", self.logger)
         return True
 
     def destroy(self):
@@ -111,25 +118,25 @@ class CrazyflieRobot:
         self.__flow_deck_attached = False
 
         self.close_connection()
-        log(f"Crazyflie {self.uri} destroyed", self.ros2_logger)
+        log(f"Crazyflie {self.name} destroyed", self.logger)
 
     # Flow deck management
     def flow_deck_attached_callback(self, _, value_str):
         if int(value_str):
             self.flow_deck_attached_event.set()
             self.__flow_deck_attached = True
-            log(f"Flow deck attached to {self.uri}", self.ros2_logger)
+            log(f"Flow deck attached to {self.name}", self.logger)
         else:
-            log(f"Flow deck is not attached to {self.uri}", self.ros2_logger)
+            log(f"Flow deck is not attached to {self.name}", self.logger)
 
     def multiranger_deck_attached_callback(self, _, value_str) -> None:
         if int(value_str):
             self.multiranger_attached_event.set()
             self.__multiranger_attached = True
             self.multiranger_sensor.start()
-            log(f"Multiranger is attached to {self.uri}", self.ros2_logger)
+            log(f"Multiranger is attached to {self.name}", self.logger)
         else:
-            log(f"Multiranger is not attached to {self.uri}", self.ros2_logger)
+            log(f"Multiranger is not attached to {self.name}", self.logger)
 
     # Connection management
     def open_connection(self):
@@ -139,7 +146,7 @@ class CrazyflieRobot:
             self.scf.open_link()
             self.__connection_opened = True
         except Exception as e:
-            log(f"Error opening connection: {e}", self.ros2_logger)
+            log(f"Error opening connection: {e}", self.logger)
             self.close_connection()
             raise e
 
@@ -149,18 +156,19 @@ class CrazyflieRobot:
 
     # * Update
     def update(self):
+        #* Handle take off and land
         z = self.state.z
         if not self.take_off_done and z >= self.default_take_off_height - 0.05:
-            log(f"Take off done for Crazyflie {self.uri}", self.ros2_logger)
+            log(f"Take off done for Crazyflie {self.name}", self.logger)
             self.take_off_done = True
             self.is_flying = True
 
         if self.take_off_done and z <= 0.05:
-            log(f"Land done for Crazyflie {self.uri}", self.ros2_logger)
+            log(f"Land done for Crazyflie {self.name}", self.logger)
             self.cf.commander.send_stop_setpoint()
             self.is_flying = False
             self.take_off_done = False
-
+            
     # * Commands
     def take_off(self, absolute_height=None, duration=None):
         if not self.__connection_opened:
@@ -174,7 +182,6 @@ class CrazyflieRobot:
             absolute_height = self.default_take_off_height
         if duration is None:
             duration = self.default_take_off_duration
-        # self.cf.high_level_commander.takeoff(absolute_height, duration)
         self.cf.commander.send_hover_setpoint(0, 0, 0, absolute_height)
 
     def land(self, duration=None):
@@ -191,7 +198,7 @@ class CrazyflieRobot:
         if self.multiranger and not self.__multiranger_attached:
             raise Exception("Multiranger not attached")
         if not self.is_flying:
-            log(f"Not flying {self.uri}", self.ros2_logger)
+            log(f"Not flying {self.name}", self.logger)
             return
         self.cf.commander.send_hover_setpoint(
             vx, vy, yaw_rate, self.default_take_off_height
@@ -205,7 +212,7 @@ class CrazyflieRobot:
         try:
             self.cf.param.set_value("led.bitmask", intensity)
         except Exception as e:
-            log(f"Error setting led intensity: {e}", self.ros2_logger)
+            log(f"Error setting led intensity: {e}", self.logger)
 
     # * Getters
     def get_state(self) -> CrazyState:
@@ -219,47 +226,25 @@ class CrazyflieRobot:
         self.state.mr_left = self.multiranger_sensor.left
         self.state.mr_up = self.multiranger_sensor.up
 
-    def pose_estimator_callback(self, timestamp, data, logconf):
-        # self.state.x = data["stateEstimate.x"]
-        # self.state.y = data["stateEstimate.y"]
-        self.state.z = data["stateEstimate.z"]
-        # self.state.roll = data["stabilizer.roll"]
-        # self.state.pitch = data["stabilizer.pitch"]
-        # self.state.yaw = data["stabilizer.yaw"]
-
-    # def velocity_estimator_callback(self, timestamp, data, logconf):
-    #   self.state.vx = data["stateEstimate.vx"]
-    #   self.state.vy = data["stateEstimate.vy"]
-    #   self.state.vz = data["stateEstimate.vz"]
-    #   self.state.roll_rate = data["stateEstimateZ.rateRoll"]
-    #   self.state.pitch_rate = data["stateEstimateZ.ratePitch"]
-    #   self.state.yaw_rate = data["stateEstimateZ.rateYaw"]
-    #   pass
-
+    def pose_estimator_callback(self, timestamp, data, logconf):        
+        self.state.x = data["stateEstimate.x"] + self.initial_position.x
+        self.state.y = data["stateEstimate.y"] + self.initial_position.y
+        self.state.z = data["stateEstimate.z"] + self.initial_position.z
+        self.state.roll = data["stabilizer.roll"]
+        self.state.pitch = data["stabilizer.pitch"]
+        self.state.yaw = data["stabilizer.yaw"]
+        
     def setup_estimators(self):
         pose_estimator = LogConfig(name="Pose", period_in_ms=10)
-        # pose_estimator.add_variable("stateEstimate.x", "float")
-        # pose_estimator.add_variable("stateEstimate.y", "float")
+        pose_estimator.add_variable("stateEstimate.x", "float")
+        pose_estimator.add_variable("stateEstimate.y", "float")
         pose_estimator.add_variable("stateEstimate.z", "float")
-        # pose_estimator.add_variable("stabilizer.roll", "float")
-        # pose_estimator.add_variable("stabilizer.pitch", "float")
-        # pose_estimator.add_variable("stabilizer.yaw", "float")
+        pose_estimator.add_variable("stabilizer.roll", "float")
+        pose_estimator.add_variable("stabilizer.pitch", "float")
+        pose_estimator.add_variable("stabilizer.yaw", "float")
         self.cf.log.add_config(pose_estimator)
-        pose_estimator.data_received_cb.add_callback(
-            self.pose_estimator_callback
-        )
+        pose_estimator.data_received_cb.add_callback(self.pose_estimator_callback)
         pose_estimator.start()
-
-        # velocity_estimator = LogConfig(name="velocity", period_in_ms=10)
-        # velocity_estimator.add_variable("stateEstimate.vx", "float")
-        # velocity_estimator.add_variable("stateEstimate.vy", "float")
-        # velocity_estimator.add_variable("stateEstimate.vz", "float")
-        # velocity_estimator.add_variable("stateEstimateZ.rateRoll", "float")
-        # velocity_estimator.add_variable("stateEstimateZ.ratePitch", "float")
-        # velocity_estimator.add_variable("stateEstimateZ.rateYaw", "float")
-        # self.cf.log.add_config(velocity_estimator)
-        # velocity_estimator.data_received_cb.add_callback(self.velocity_estimator_callback)
-        # velocity_estimator.start()
 
     # * Estimator Reset
     def reset_estimator(self):

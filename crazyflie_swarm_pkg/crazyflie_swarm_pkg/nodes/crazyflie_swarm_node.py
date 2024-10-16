@@ -5,8 +5,9 @@ import cflib.crtp as crtp
 import rclpy
 from rclpy.node import Node, Publisher, Subscription
 from std_msgs.msg import Float32
+from geometry_msgs.msg import Twist
 
-from crazyflie_swarm_interfaces.msg import CrazyflieState, CrazyflieVelocity
+from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_interfaces.srv import Land, TakeOff
 from crazyflie_swarm_pkg.crazyflie import CrazyflieRobot
 from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
@@ -35,15 +36,19 @@ class CrazyflieSwarmNode(Node):
 
         self.swarm: Dict[str, CrazyflieRobot] = {}
         for crazyflie_config in self.config.crazyflies:
+            if crazyflie_config.active is False: continue
             uri = crazyflie_config.uri
             name = crazyflie_config.name
             multiranger = crazyflie_config.multiranger
+            initial_position = crazyflie_config.initial_position
             crazyflie_robot = CrazyflieRobot(
-                uri,
+                uri=uri,
+                name=name,
                 ro_cache="./ro_cache",
                 rw_cache="./rw_cache",
-                ros2_logger=self.get_logger(),
+                logger=self.get_logger(),
                 multiranger=multiranger,
+                initial_position=initial_position,
             )
             while not crazyflie_robot.initialize():
                 time.sleep(0.5)
@@ -62,7 +67,7 @@ class CrazyflieSwarmNode(Node):
         self.velocity_subscribers: Dict[str, Subscription] = {}
         for name, _ in self.swarm.items():
             self.velocity_subscribers[name] = self.create_subscription(
-                CrazyflieVelocity,
+                Twist,
                 f"/{name}/velocity",
                 lambda msg, name=name: self.velocity_callback(msg, name),
                 10,
@@ -108,14 +113,12 @@ class CrazyflieSwarmNode(Node):
             self.get_logger().error(f"Error in led_callback: {e}")
 
     def velocity_callback(self, msg, name: str) -> None:
-        velocity_x = msg.linear_velocity[0]
-        velocity_y = msg.linear_velocity[1]
-        yaw_rate = msg.angular_velocity[2]
+        velocity_x = msg.linear.x
+        velocity_y = msg.linear.y
+        yaw_rate = msg.angular.z
 
         try:
-            # self.swarm[name].set_velocity(velocity_x, velocity_y, yaw_rate)
-            pass
-
+            self.swarm[name].set_velocity(velocity_x, velocity_y, yaw_rate)
         except Exception as e:
             self.get_logger().error(f"Error in velocity_callback: {e}")
 

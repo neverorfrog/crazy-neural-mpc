@@ -3,13 +3,20 @@ from typing import List
 
 from omegaconf import MISSING
 
+@dataclass
+class Position:
+    x: float
+    y: float
+    z: float
 
 @dataclass
 class CrazyflieConfig:
+    active: bool = False
     name: str = MISSING
     uri: str = MISSING
     height: float = MISSING
     multiranger: bool = False
+    initial_position: Position = MISSING
 
 
 @dataclass
@@ -21,3 +28,5 @@ class SwarmConfig:
     crazyflies: List[CrazyflieConfig] = field(
         default_factory=list[CrazyflieConfig]
     )
+
+

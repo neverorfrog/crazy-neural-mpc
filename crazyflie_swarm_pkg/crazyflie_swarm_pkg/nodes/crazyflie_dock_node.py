@@ -6,8 +6,8 @@ from rclpy.node import Node, Publisher
 from std_msgs.msg import Float32
 from std_srvs.srv import Empty
 
-from crazyflie_swarm_interfaces.msg import CrazyflieVelocity
-from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
+from crazyflie_swarm_pkg.utils import SwarmConfig
+from crazyflie_swarm_pkg.utils import load_config
 
 
 class CrazyflieDock(Node):
@@ -32,12 +32,14 @@ class CrazyflieDock(Node):
         # * CrazyflieSwarm
         self.swarm: Dict[str] = {}
         for crazyflie_config in self.config.crazyflies:
+            if crazyflie_config.active is False: continue
             uri = crazyflie_config.uri
             name = crazyflie_config.name
             self.swarm[name] = uri
 
         # * Publishers
         self.led_publishers: Dict[str, Publisher] = {}
+        self.led_intensity = 0.0
         led_publisher_rate = self.config.led_publisher_rate
         for name, _ in self.swarm.items():
             publisher = self.create_publisher(Float32, f"/{name}/led", 10)
@@ -53,7 +55,7 @@ class CrazyflieDock(Node):
         velocity_publisher_rate = self.config.velocity_publisher_rate
         for name, _ in self.swarm.items():
             publisher = self.create_publisher(
-                CrazyflieVelocity, f"/{name}/velocity", 10
+                Twist, f"/{name}/velocity", 10
             )
             self.velocity_publishers[name] = publisher
             self.create_timer(
@@ -78,61 +80,29 @@ class CrazyflieDock(Node):
         )
         self.is_moving = False
 
-        self.k1 = 0
-        self.k2 = 0
-        self.k3 = 0
 
     def led_callback(self, name: str, publisher: Publisher) -> None:
-        intensity = Float32()
-        if name == "cf1":
-            if self.k1 % 2 == 0:
-                intensity.data = 255.0
-            else:
-                intensity.data = 0.0
-            self.k1 += 1
-        elif name == "cf2":
-            if self.k2 % 2 == 0:
-                intensity.data = 0.0
-            else:
-                intensity.data = 255.0
-            self.k2 += 1
-        elif name == "cf3":
-            if self.k3 % 2 == 0:
-                intensity.data = 0.0
-            else:
-                intensity.data = 255.0
-            self.k3 += 1
+        intensity = Float32()            
+        if self.led_intensity == 0.0:
+            intensity.data = 0.0
+            self.led_intensity = 255.0
+        else:
+            intensity.data = 255.0
+            self.led_intensity = 0.0
+           
         publisher.publish(intensity)
 
     def cmd_vel_callback(self, msg: Twist) -> None:
         self.current_cmd_vel = msg
 
     def velocity_callback(self, name: str, publisher: Publisher) -> None:
-        velocity_msg = CrazyflieVelocity()
-        velocity_msg.header.stamp = self.get_clock().now().to_msg()
-        velocity_msg.linear_velocity[0] = self.current_cmd_vel.linear.x
-        velocity_msg.linear_velocity[1] = self.current_cmd_vel.linear.y
-        velocity_msg.linear_velocity[2] = 0.0
-        velocity_msg.angular_velocity[0] = 0.0
-        velocity_msg.angular_velocity[1] = 0.0
-        velocity_msg.angular_velocity[2] = self.current_cmd_vel.angular.z
-
-        # if name=='cf1':
-        #   velocity_msg.linear_velocity[0] = 0.15 if self.is_moving else 0.0
-        #   velocity_msg.linear_velocity[1] = 0.0
-        #   velocity_msg.linear_velocity[2] = 0.0
-        #   velocity_msg.angular_velocity[0] = 0.0
-        #   velocity_msg.angular_velocity[1] = 0.0
-        #   velocity_msg.angular_velocity[2] = 0.0
-
-        # elif name=='cf2':
-        #   velocity_msg.linear_velocity[0] = -0.15 if self.is_moving else 0.0
-        #   velocity_msg.linear_velocity[1] = 0.0
-        #   velocity_msg.linear_velocity[2] = 0.0
-        #   velocity_msg.angular_velocity[0] = 0.0
-        #   velocity_msg.angular_velocity[1] = 0.0
-        #   velocity_msg.angular_velocity[2] = 0.0
-
+        velocity_msg = Twist()
+        velocity_msg.linear.x = self.current_cmd_vel.linear.x
+        velocity_msg.linear.y = self.current_cmd_vel.linear.y
+        velocity_msg.linear.z = 0.0
+        velocity_msg.angular.x = 0.0
+        velocity_msg.angular.y = 0.0
+        velocity_msg.angular.z = self.current_cmd_vel.angular.z
         publisher.publish(velocity_msg)
 
     def start_callback(self, request, response) -> Empty.Response:
