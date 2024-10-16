@@ -75,7 +75,7 @@ class CrazyState:
 
         return R
 
-    def rel2glob(self, rel_pos) -> np.ndarray:
+    def rel2glob(self, rel_pos: np.ndarray) -> np.ndarray:
         """
         Calculate the absolute position of an obstacle given the orientation and position of the robot.
 
@@ -85,6 +85,7 @@ class CrazyState:
         Returns:
             np.ndarray: A 3x1 vector representing the absolute position of the object.
         """
+        rel_pos.reshape(3, 1)
         R = self.get_rotation_matrix()
         abs_pos = self.get_position() + R @ rel_pos
-        return abs_pos
+        return abs_pos.reshape(3, 1)

@@ -29,13 +29,19 @@ class ForcesGenerator:
         # Inter-robot forces, formula (2)
         for name, neighbor in neighbors.items():
             n_pos = neighbor.get_position()
+
+            print(n_pos.shape)
+
             neighbor_distance = (
                 np.linalg.norm(n_pos - self_pos)
                 - 2 * self.config.dimensions.radius
             )
+
             if neighbor_distance > 2 * self.config.dimensions.d_eq:
                 continue
-            u_ij = get_versor(n_pos - self_pos)
+
+            u_ij = get_versor(n_pos - self_pos).reshape((3, 1))
+
             f_inter_robot += (
                 self.config.gains.k_r
                 * (neighbor_distance - self.config.dimensions.d_eq)
@@ -46,10 +52,6 @@ class ForcesGenerator:
         # Obstacle avoidance forces, formula (3)
         for o in detected_obstacles:
             obstacle_distance = o.rel_pos - self.config.dimensions.radius
-            d_0 = (
-                self.config.dimensions.max_vis_objs
-                - self.config.dimensions.radius
-            )
 
             self_yaw = state.yaw
             R = np.array(
@@ -71,12 +73,18 @@ class ForcesGenerator:
 
             u_ik = np.reshape(u_ik, (3, 1))
 
-            # contr = -self.k_o * (1/(obstacle_distance)**2)* u_ik               # f_obs originale
+            contr = (
+                -self.config.gains.k_o * (1 / (obstacle_distance) ** 2) * u_ik
+            )  # f_obs originale
             # contr = -self.k_o * (1/(obstacle_distance)**2 - 1/(d_0)**2)* u_ik  # f_obs continua
             # contr = -self.k_o * (1/(obstacle_distance) - 1/(d_0))**2 * u_ik     # f_obs APF
-            contr = (
-                1 / 3 * (obstacle_distance - d_0) / obstacle_distance**0.5
-            )  # f_obs Luca
+
+            # d_0 = (
+            #     self.config.dimensions.max_vis_objs - self.config.dimensions.radius
+            # )
+            # contr = (
+            #     1 / 3 * (obstacle_distance - d_0) / obstacle_distance**0.5
+            # )  # f_obs Luca
 
             f_obstacle += self.config.gains.k_o * contr * u_ik
 

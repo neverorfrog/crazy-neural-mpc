@@ -22,8 +22,8 @@ class ObstacleType(Enum):
 class Obstacle:
     def __init__(
         self,
-        abs_pos: np.ndarray = np.zeros(3, 1),
-        rel_pos: np.ndarray = np.zeros(3, 1),
+        abs_pos: np.ndarray = np.zeros((3, 1)),
+        rel_pos: np.ndarray = np.zeros((3, 1)),
         direction: Direction = Direction.none,
         type: ObstacleType = ObstacleType.none,
     ) -> None:
@@ -31,3 +31,11 @@ class Obstacle:
         self.rel_pos = rel_pos
         self.direction = direction
         self.type = type
+
+    def __str__(self):
+        return (
+            f"Direction: {self.direction}\n"
+            + f"Type: {self.type}\n"
+            + f"Absolute Position: {self.abs_pos.transpose()}\n"
+            + f"Relative Position: {self.rel_pos.transpose()}\n"
+        )

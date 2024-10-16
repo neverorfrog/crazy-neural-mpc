@@ -9,6 +9,7 @@ __pycache__/
 build
 install
 log
+rw_cache
 
 # C extensions
 *.so

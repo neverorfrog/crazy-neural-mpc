@@ -6,8 +6,7 @@ from rclpy.node import Node, Publisher
 from std_msgs.msg import Float32
 from std_srvs.srv import Empty
 
-from crazyflie_swarm_pkg.utils import SwarmConfig
-from crazyflie_swarm_pkg.utils import load_config
+from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
 
 
 class CrazyflieDock(Node):
@@ -32,7 +31,8 @@ class CrazyflieDock(Node):
         # * CrazyflieSwarm
         self.swarm: Dict[str] = {}
         for crazyflie_config in self.config.crazyflies:
-            if crazyflie_config.active is False: continue
+            if crazyflie_config.active is False:
+                continue
             uri = crazyflie_config.uri
             name = crazyflie_config.name
             self.swarm[name] = uri
@@ -54,9 +54,7 @@ class CrazyflieDock(Node):
         self.velocity_publishers: Dict[str, Publisher] = {}
         velocity_publisher_rate = self.config.velocity_publisher_rate
         for name, _ in self.swarm.items():
-            publisher = self.create_publisher(
-                Twist, f"/{name}/velocity", 10
-            )
+            publisher = self.create_publisher(Twist, f"/{name}/velocity", 10)
             self.velocity_publishers[name] = publisher
             self.create_timer(
                 1 / velocity_publisher_rate,
@@ -80,16 +78,15 @@ class CrazyflieDock(Node):
         )
         self.is_moving = False
 
-
     def led_callback(self, name: str, publisher: Publisher) -> None:
-        intensity = Float32()            
+        intensity = Float32()
         if self.led_intensity == 0.0:
             intensity.data = 0.0
             self.led_intensity = 255.0
         else:
             intensity.data = 255.0
             self.led_intensity = 0.0
-           
+
         publisher.publish(intensity)
 
     def cmd_vel_callback(self, msg: Twist) -> None:

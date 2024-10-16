@@ -3,9 +3,9 @@ from typing import Dict
 
 import cflib.crtp as crtp
 import rclpy
+from geometry_msgs.msg import Twist
 from rclpy.node import Node, Publisher, Subscription
 from std_msgs.msg import Float32
-from geometry_msgs.msg import Twist
 
 from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_interfaces.srv import Land, TakeOff
@@ -36,7 +36,8 @@ class CrazyflieSwarmNode(Node):
 
         self.swarm: Dict[str, CrazyflieRobot] = {}
         for crazyflie_config in self.config.crazyflies:
-            if crazyflie_config.active is False: continue
+            if crazyflie_config.active is False:
+                continue
             uri = crazyflie_config.uri
             name = crazyflie_config.name
             multiranger = crazyflie_config.multiranger

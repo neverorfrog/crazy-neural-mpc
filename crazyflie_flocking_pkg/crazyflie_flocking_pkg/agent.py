@@ -1,6 +1,7 @@
 from typing import Dict, List
 
 import numpy as np
+from rclpy.impl.rcutils_logger import RcutilsLogger
 
 from crazyflie_flocking_pkg.flocking_forces import ForcesGenerator
 from crazyflie_flocking_pkg.utils.configuration import FlockingConfig
@@ -13,8 +14,14 @@ from crazyflie_swarm_pkg.crazyflie import CrazyState
 
 
 class Agent:
-    def __init__(self, name: str, config: FlockingConfig):
+    def __init__(
+        self,
+        name: str,
+        config: FlockingConfig,
+        ros2_logger: RcutilsLogger = None,
+    ):
         self.forces_gen = ForcesGenerator(config)
+        self.ros2_logger = ros2_logger
         self.config = config
         self.name = name
         self.counter = 0
@@ -35,15 +42,29 @@ class Agent:
         # TODO: per ora si mettono solo in formazione
         v_mig = np.array([0, 0, 0])
 
-        # Guess what
-        detected_obstacles = self.detect_obstacles(state, neighbors)
+        if self.name == "cf2":
+            self.ros2_logger.info(
+                "----------------------------------------------------"
+            )
+            self.ros2_logger.info(f"Agent {self.name} - state: {state}\n")
+            self.ros2_logger.info(f"- neighbors: {neighbors}")
+            detected_obstacles = self.detect_obstacles(state, neighbors)
+            for o in detected_obstacles:
+                self.ros2_logger.info(f"obstacle: {o}")
+            self.ros2_logger.info(
+                "----------------------------------------------------"
+            )
 
         # Compute the forces
         forces = self.forces_gen.get_forces(
             state, neighbors, detected_obstacles, v_mig
         )
+        # self.ros2_logger.info(f"Agent {self.name} - forces: {forces}")
+
         overall_force = np.clip(
-            np.sum(forces, axis=1), -self.config.bounds.force_max, self.config.bounds.force_max
+            np.sum(forces, axis=1),
+            -self.config.bounds.force_max,
+            self.config.bounds.force_max,
         )
 
         # Compute the yaw mean
@@ -89,9 +110,8 @@ class Agent:
         """
         detected_obstacles: List[Obstacle] = []
 
-        # TODO: 2? li prendiamo tutti?
         if state.mr_front < 2:
-            obstacle_rel_pos = state.mr_front * np.array([[1], [0], [0]])
+            obstacle_rel_pos = state.mr_front * np.array([1, 0, 0])
             detected_obstacles.append(
                 Obstacle(
                     abs_pos=state.rel2glob(obstacle_rel_pos),
@@ -100,7 +120,7 @@ class Agent:
             )
 
         if state.mr_left < 2:
-            obstacle_rel_pos = state.mr_left * np.array([[0], [1], [0]])
+            obstacle_rel_pos = state.mr_left * np.array([0, 1, 0])
             detected_obstacles.append(
                 Obstacle(
                     abs_pos=state.rel2glob(obstacle_rel_pos),
@@ -109,7 +129,7 @@ class Agent:
             )
 
         if state.mr_back < 2:
-            obstacle_rel_pos = state.mr_back * np.array([[-1], [0], [0]])
+            obstacle_rel_pos = state.mr_back * np.array([-1, 0, 0])
             detected_obstacles.append(
                 Obstacle(
                     abs_pos=state.rel2glob(obstacle_rel_pos),
@@ -118,7 +138,7 @@ class Agent:
             )
 
         if state.mr_right < 2:
-            obstacle_rel_pos = state.mr_right * np.array([[0], [-1], [0]])
+            obstacle_rel_pos = state.mr_right * np.array([0, -1, 0])
             detected_obstacles.append(
                 Obstacle(
                     abs_pos=state.rel2glob(obstacle_rel_pos),
@@ -127,7 +147,7 @@ class Agent:
             )
 
         if state.mr_up < 2:
-            obstacle_rel_pos = state.mr_right * np.array([[0], [0], [1]])
+            obstacle_rel_pos = state.mr_right * np.array([0, 0, 1])
             detected_obstacles.append(
                 Obstacle(
                     abs_pos=state.rel2glob(obstacle_rel_pos),
@@ -139,10 +159,10 @@ class Agent:
         for o in detected_obstacles:
             isObstacle = True
 
-            if o.abs_pos[2] < 0.1:
-                isObstacle = False
-                o.type = ObstacleType.floor
-                continue
+            # if o.abs_pos[2] < 0.1:
+            #     isObstacle = False
+            #     o.type = ObstacleType.floor
+            #     continue
 
             for _, neighbor in neighbors.items():
                 dist = np.linalg.norm(o.abs_pos - neighbor.get_position())
@@ -152,9 +172,12 @@ class Agent:
                     o.type = ObstacleType.drone
                     break
 
+            # Obstacles that aren't floors or drones are classified as generic obstacles
             if isObstacle:
                 obstacle_rel_pos = np.linalg.norm(self_state - o.abs_pos)
                 o.rel_pos = obstacle_rel_pos
                 o.type = ObstacleType.obstacle
+
+            self.ros2_logger.info(f"Detected obstacle: {o}")
 
         return detected_obstacles

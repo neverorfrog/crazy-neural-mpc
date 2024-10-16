@@ -24,7 +24,7 @@ class CrazyflieRobot:
         initial_position=None,
     ):
         self.uri = uri
-        self.name = name    
+        self.name = name
         self.cf = Crazyflie(ro_cache=ro_cache, rw_cache=rw_cache)
         self.scf = SyncCrazyflie(self.uri, cf=self.cf)
         self.logger = logger
@@ -56,7 +56,7 @@ class CrazyflieRobot:
         self.multiranger_attached_event = Event()
         self.multiranger_attached_event.clear()
         self.multiranger_sensor = Multiranger(self.scf)
-        
+
         self.take_off_done = False
         self.is_flying = False
 
@@ -94,10 +94,7 @@ class CrazyflieRobot:
             self.logger,
         )
         self.reset_estimator()
-        log(
-            f"Estimators of Crazyflie {self.name} reset.", 
-            self.logger
-        )
+        log(f"Estimators of Crazyflie {self.name} reset.", self.logger)
 
         log(
             f"Starting estimators of Crazyflie {self.name} ...",
@@ -105,7 +102,7 @@ class CrazyflieRobot:
         )
         self.setup_estimators()
         log(f"Estimators of Crazyflie {self.name} started.", self.logger)
-        
+
         log(f"Crazyflie {self.name} initialized", self.logger)
         return True
 
@@ -156,7 +153,7 @@ class CrazyflieRobot:
 
     # * Update
     def update(self):
-        #* Handle take off and land
+        # * Handle take off and land
         z = self.state.z
         if not self.take_off_done and z >= self.default_take_off_height - 0.05:
             log(f"Take off done for Crazyflie {self.name}", self.logger)
@@ -168,7 +165,7 @@ class CrazyflieRobot:
             self.cf.commander.send_stop_setpoint()
             self.is_flying = False
             self.take_off_done = False
-            
+
     # * Commands
     def take_off(self, absolute_height=None, duration=None):
         if not self.__connection_opened:
@@ -226,14 +223,14 @@ class CrazyflieRobot:
         self.state.mr_left = self.multiranger_sensor.left
         self.state.mr_up = self.multiranger_sensor.up
 
-    def pose_estimator_callback(self, timestamp, data, logconf):        
+    def pose_estimator_callback(self, timestamp, data, logconf):
         self.state.x = data["stateEstimate.x"] + self.initial_position.x
         self.state.y = data["stateEstimate.y"] + self.initial_position.y
         self.state.z = data["stateEstimate.z"] + self.initial_position.z
         self.state.roll = data["stabilizer.roll"]
         self.state.pitch = data["stabilizer.pitch"]
         self.state.yaw = data["stabilizer.yaw"]
-        
+
     def setup_estimators(self):
         pose_estimator = LogConfig(name="Pose", period_in_ms=10)
         pose_estimator.add_variable("stateEstimate.x", "float")
@@ -243,7 +240,9 @@ class CrazyflieRobot:
         pose_estimator.add_variable("stabilizer.pitch", "float")
         pose_estimator.add_variable("stabilizer.yaw", "float")
         self.cf.log.add_config(pose_estimator)
-        pose_estimator.data_received_cb.add_callback(self.pose_estimator_callback)
+        pose_estimator.data_received_cb.add_callback(
+            self.pose_estimator_callback
+        )
         pose_estimator.start()
 
     # * Estimator Reset
