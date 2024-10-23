@@ -30,8 +30,10 @@ def generate_launch_description():
     # Configure ROS nodes for launch
 
     # Setup project paths
-    pkg_path = get_package_share_directory('crazyflie_simulation_pkg')
-    gz_model_path = os.getenv('GZ_SIM_RESOURCE_PATH') # TODO: settare variabile d'ambiente
+    pkg_project_bringup = get_package_share_directory('ros_gz_crazyflie_bringup')
+    pkg_project_gazebo = get_package_share_directory('ros_gz_crazyflie_gazebo')
+    pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
+    gz_model_path = os.getenv('GZ_SIM_RESOURCE_PATH')
 
     # Load the SDF file from "description" package
     sdf_file  =  os.path.join(gz_model_path, 'crazyflie', 'model.sdf')
@@ -41,9 +43,9 @@ def generate_launch_description():
     # Setup to launch the simulator and Gazebo world
     gz_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(pkg_path, 'launch', 'gz_sim.launch.py')),
+            os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
         launch_arguments={'gz_args': PathJoinSubstitution([
-            pkg_path,
+            pkg_project_gazebo,
             'worlds',
             'crazyflie_world.sdf -r'
         ])}.items(),
@@ -53,19 +55,19 @@ def generate_launch_description():
         package='ros_gz_bridge',
         executable='parameter_bridge',
         parameters=[{
-            'config_file': os.path.join(pkg_path, 'config', 'ros_gz_crazyflie_bridge.yaml'),
+            'config_file': os.path.join(pkg_project_bringup, 'config', 'ros_gz_crazyflie_bridge.yaml'),
         }],
 
         output='screen'
     )
 
     control = Node(
-        package='crazyflie_simulation_pkg',
-        executable='crazyflie_simulation_exec',
+        package='ros_gz_crazyflie_control',
+        executable='control_services',
         output='screen',
         parameters=[
             {'hover_height': 0.5},
-            {'robot_prefix': '/cf1'},
+            {'robot_prefix': '/crazyflie'},
             {'incoming_twist_topic': '/cmd_vel'},
             {'max_ang_z_rate': 0.4},
         ]

@@ -1,3 +1,0 @@
-[submodule "crazyflie_simulation_pkg/gz_simulation_files"]
-	path = crazyflie_simulation_pkg/gz_simulation_files
-	url = https://github.com/bitcraze/crazyflie-simulation.git

@@ -4,13 +4,14 @@ from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
 
+# TODO: Implement the ControlServices class for the swarm
 
-class CrazyflieSimulationNode(Node):
+class ControlServices(Node):
 
     def __init__(self):
-        super().__init__('crazyflie_simulation_node')
+        super().__init__('control_services')
         self.declare_parameter('hover_height', 0.5)
-        self.declare_parameter('robot_prefix', '/cf1')
+        self.declare_parameter('robot_prefix', '/crazyflie')
         self.declare_parameter('incoming_twist_topic', '/cmd_vel')
         self.declare_parameter('max_ang_z_rate', 0.4)
 
@@ -102,7 +103,7 @@ class CrazyflieSimulationNode(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    control_services = CrazyflieSimulationNode()
+    control_services = ControlServices()
 
     rclpy.spin(control_services)
 
