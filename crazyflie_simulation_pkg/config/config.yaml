@@ -1,0 +1,33 @@
+dt: 0.01
+state_publisher_rate: 5.0
+led_publisher_rate: 2.0
+velocity_publisher_rate: 0.5
+
+crazyflies:
+  - name: cf1
+    height: 0.2
+    initial_position:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+
+  - name: cf2
+    height: 0.2
+    initial_position:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+
+  - name: cf3
+    height: 0.3
+    initial_position:
+      x: 0.25
+      y: 0.0
+      z: 0.0
+
+  - name: cf4
+    height: 0.2
+    initial_position:
+      x: 0.0
+      y: 0.0
+      z: 0.0
