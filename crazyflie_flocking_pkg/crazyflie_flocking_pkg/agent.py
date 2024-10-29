@@ -167,7 +167,7 @@ class Agent:
             for _, neighbor in neighbors.items():
                 dist = np.linalg.norm(o.abs_pos - neighbor.get_position())
 
-                if dist < 0.1:
+                if dist < 0.1:  # TODO: make this a parameter, like "DRONE_CLASS_THRESHOLD"
                     isObstacle = False
                     o.type = ObstacleType.drone
                     break
