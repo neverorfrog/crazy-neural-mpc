@@ -37,6 +37,9 @@ class ForcesGenerator:
                 - 2 * self.config.dimensions.radius
             )
 
+            # It's not sure that this is right, it's done to avoid the case of the over-pulling of the drones if they're a lot
+            #  namely, if you have a lot of robot, thay can't be at d_eq to each other, but just a subset of them
+            #  this means that all the other will pull the drone towards other drones, making the configuration "squeeze"
             if neighbor_distance > 2 * self.config.dimensions.d_eq:
                 continue
 
@@ -73,6 +76,7 @@ class ForcesGenerator:
 
             u_ik = np.reshape(u_ik, (3, 1))
 
+            # We could test other kind of obstacle force just to see which one is the best
             contr = (
                 -self.config.gains.k_o * (1 / (obstacle_distance) ** 2) * u_ik
             )  # f_obs originale
