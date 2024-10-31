@@ -76,6 +76,7 @@ class ForcesGenerator:
 
             u_ik = np.reshape(u_ik, (3, 1))
 
+            # BE SURE THAT THE GAIN K_O IS NOT USED TWICE
             # We could test other kind of obstacle force just to see which one is the best
             contr = (
                 -self.config.gains.k_o * (1 / (obstacle_distance) ** 2) * u_ik
