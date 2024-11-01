@@ -36,7 +36,19 @@ def generate_launch_description():
     gz_model_path = os.getenv('GZ_SIM_RESOURCE_PATH')
 
     # Load the SDF file from "description" package
-    sdf_file  =  os.path.join(gz_model_path, 'crazyflie', 'model.sdf')
+    sdf_file  =  os.path.join(gz_model_path, 'crazyflie_1', 'model.sdf')
+    with open(sdf_file, 'r') as infp:
+        robot_desc = infp.read()
+        
+    sdf_file  =  os.path.join(gz_model_path, 'crazyflie_2', 'model.sdf')
+    with open(sdf_file, 'r') as infp:
+        robot_desc = infp.read()
+        
+    sdf_file  =  os.path.join(gz_model_path, 'crazyflie_3', 'model.sdf')
+    with open(sdf_file, 'r') as infp:
+        robot_desc = infp.read()
+        
+    sdf_file  =  os.path.join(gz_model_path, 'crazyflie_4', 'model.sdf')
     with open(sdf_file, 'r') as infp:
         robot_desc = infp.read()
 
@@ -46,7 +58,7 @@ def generate_launch_description():
             os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
         launch_arguments={'gz_args': PathJoinSubstitution([
             pkg_project_gazebo,
-            'worlds',
+            'models/worlds',
             'crazyflie_world.sdf -r'
         ])}.items(),
     )
@@ -61,20 +73,69 @@ def generate_launch_description():
         output='screen'
     )
 
-    control = Node(
+    cf1 = Node(
         package='ros_gz_crazyflie_control',
         executable='control_services',
         output='screen',
         parameters=[
             {'hover_height': 0.5},
-            {'robot_prefix': '/crazyflie'},
+            {'robot_prefix': '/cf1'},
+            {'incoming_twist_topic': '/cmd_vel'},
+            {'max_ang_z_rate': 0.4},
+        ]
+    )
+    
+    cf2 = Node(
+        package='ros_gz_crazyflie_control',
+        executable='control_services',
+        output='screen',
+        parameters=[
+            {'hover_height': 0.5},
+            {'robot_prefix': '/cf2'},
             {'incoming_twist_topic': '/cmd_vel'},
             {'max_ang_z_rate': 0.4},
         ]
     )
 
+    cf3 = Node(
+        package='ros_gz_crazyflie_control',
+        executable='control_services',
+        output='screen',
+        parameters=[
+            {'hover_height': 0.5},
+            {'robot_prefix': '/cf3'},
+            {'incoming_twist_topic': '/cmd_vel'},
+            {'max_ang_z_rate': 0.4},
+        ]
+    )
+        
+    cf4 = Node(
+        package='ros_gz_crazyflie_control',
+        executable='control_services',
+        output='screen',
+        parameters=[
+            {'hover_height': 0.5},
+            {'robot_prefix': '/cf4'},
+            {'incoming_twist_topic': '/cmd_vel'},
+            {'max_ang_z_rate': 0.4},
+        ]
+    )
+    
+    
+    rviz = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        arguments=['-d', ''],
+        output='screen'
+    )
+
     return LaunchDescription([
         gz_sim,
         bridge,
-        control        
+        cf1,
+        cf2,
+        cf3,
+        cf4,
+        rviz 
     ])

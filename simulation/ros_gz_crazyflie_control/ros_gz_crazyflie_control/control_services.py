@@ -90,12 +90,6 @@ class ControlServices(Node):
     def odometry_callback(self, msg):
         self.current_pose = msg.pose.pose
 
-    def takeoff_callback(self, request, response):
-
-        self.takeoff_command = True
-        response.success = True
-        return response
-
     def cmd_vel_callback(self, msg):
         self.teleop_cmd = msg
 

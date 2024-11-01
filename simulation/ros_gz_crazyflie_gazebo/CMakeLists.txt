@@ -6,8 +6,8 @@ find_package(ament_cmake REQUIRED)
 
 
 install(
-  DIRECTORY worlds/
-  DESTINATION share/${PROJECT_NAME}/worlds
+  DIRECTORY models/worlds/
+  DESTINATION share/${PROJECT_NAME}/models/worlds
 )
 
 if(BUILD_TESTING)
