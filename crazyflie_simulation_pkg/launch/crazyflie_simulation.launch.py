@@ -1,0 +1,140 @@
+# Copyright 2022 Open Source Robotics Foundation, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+
+from ament_index_python.packages import get_package_share_directory
+
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.actions import IncludeLaunchDescription
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+
+from launch_ros.actions import Node
+
+
+def generate_launch_description():
+    # Configure ROS nodes for launch
+
+    # Setup project paths
+    pkg_path = get_package_share_directory('crazyflie_simulation_pkg')
+    pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
+    gz_model_path = os.getenv('GZ_SIM_RESOURCE_PATH')
+
+    # Load the SDF file from "description" package
+    sdf_file  =  os.path.join(gz_model_path, 'crazyflie_1', 'model.sdf')
+    with open(sdf_file, 'r') as infp:
+        robot_desc = infp.read()
+        
+    sdf_file  =  os.path.join(gz_model_path, 'crazyflie_2', 'model.sdf')
+    with open(sdf_file, 'r') as infp:
+        robot_desc = infp.read()
+        
+    sdf_file  =  os.path.join(gz_model_path, 'crazyflie_3', 'model.sdf')
+    with open(sdf_file, 'r') as infp:
+        robot_desc = infp.read()
+        
+    sdf_file  =  os.path.join(gz_model_path, 'crazyflie_4', 'model.sdf')
+    with open(sdf_file, 'r') as infp:
+        robot_desc = infp.read()
+
+    # Setup to launch the simulator and Gazebo world
+    gz_sim = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
+        launch_arguments={'gz_args': PathJoinSubstitution([
+            gz_model_path,
+            'worlds',
+            'crazyflie_world.sdf -r'
+        ])}.items(),
+    )
+
+    bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        parameters=[{
+            'config_file': os.path.join(pkg_path, 'config', 'ros_gz_crazyflie_bridge.yaml'),
+        }],
+
+        output='screen'
+    )
+
+    cf1 = Node(
+        package='crazyflie_simulation_pkg',
+        executable='control_services',
+        output='screen',
+        parameters=[
+            {'hover_height': 0.5},
+            {'robot_prefix': '/cf1'},
+            {'incoming_twist_topic': '/cmd_vel'},
+            {'max_ang_z_rate': 0.4},
+        ]
+    )
+    
+    cf2 = Node(
+        package='crazyflie_simulation_pkg',
+        executable='control_services',
+        output='screen',
+        parameters=[
+            {'hover_height': 0.5},
+            {'robot_prefix': '/cf2'},
+            {'incoming_twist_topic': '/cmd_vel'},
+            {'max_ang_z_rate': 0.4},
+        ]
+    )
+
+    cf3 = Node(
+        package='crazyflie_simulation_pkg',
+        executable='control_services',
+        output='screen',
+        parameters=[
+            {'hover_height': 0.5},
+            {'robot_prefix': '/cf3'},
+            {'incoming_twist_topic': '/cmd_vel'},
+            {'max_ang_z_rate': 0.4},
+        ]
+    )
+        
+    cf4 = Node(
+        package='crazyflie_simulation_pkg',
+        executable='control_services',
+        output='screen',
+        parameters=[
+            {'hover_height': 0.5},
+            {'robot_prefix': '/cf4'},
+            {'incoming_twist_topic': '/cmd_vel'},
+            {'max_ang_z_rate': 0.4},
+        ]
+    )
+    
+    
+    rviz = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        arguments=['-d', ''],
+        output='screen'
+    )
+
+    return LaunchDescription([
+        gz_sim,
+        bridge,
+        cf1,
+        cf2,
+        cf3,
+        cf4,
+        rviz 
+    ])
