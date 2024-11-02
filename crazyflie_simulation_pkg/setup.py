@@ -31,7 +31,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            "control_services = crazyflie_simulation_pkg.nodes.control_services:main",
+            'crazyflie_simulation_exec = crazyflie_simulation_pkg.nodes.crazyflie_simulation_node:main',
         ],
     },
 )

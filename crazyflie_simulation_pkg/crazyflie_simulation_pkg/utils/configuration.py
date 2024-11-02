@@ -13,17 +13,16 @@ class Position:
 
 @dataclass
 class CrazyflieConfig:
+    active: bool = False
     name: str = MISSING
-    height: float = MISSING
-    initial_position: Position = MISSING
 
 
 @dataclass
 class SwarmConfig:
-    dt: float = field(default=0.01)
     state_publisher_rate: float = field(default=10.0)
-    led_publisher_rate: float = field(default=1.0)
     velocity_publisher_rate: float = field(default=1.0)
+    max_ang_z_rate: float = field(default=0.4)
+    height: float = field(default=0.5)  
     crazyflies: List[CrazyflieConfig] = field(
         default_factory=list[CrazyflieConfig]
     )

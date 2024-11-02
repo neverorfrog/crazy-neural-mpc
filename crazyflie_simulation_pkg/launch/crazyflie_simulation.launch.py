@@ -30,7 +30,7 @@ def generate_launch_description():
     # Configure ROS nodes for launch
 
     # Setup project paths
-    pkg_path = get_package_share_directory('crazyflie_simulation_pkg')
+    root = get_package_share_directory('crazyflie_simulation_pkg')
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
     gz_model_path = os.getenv('GZ_SIM_RESOURCE_PATH')
 
@@ -66,61 +66,21 @@ def generate_launch_description():
         package='ros_gz_bridge',
         executable='parameter_bridge',
         parameters=[{
-            'config_file': os.path.join(pkg_path, 'config', 'ros_gz_crazyflie_bridge.yaml'),
+            'config_file': os.path.join(root, 'config', 'ros_gz_crazyflie_bridge.yaml'),
         }],
 
         output='screen'
     )
 
-    cf1 = Node(
+    cf_sim = Node(
         package='crazyflie_simulation_pkg',
-        executable='control_services',
+        executable='crazyflie_simulation_exec',
         output='screen',
         parameters=[
-            {'hover_height': 0.5},
-            {'robot_prefix': '/cf1'},
-            {'incoming_twist_topic': '/cmd_vel'},
-            {'max_ang_z_rate': 0.4},
+            {"swarm_config_path": os.path.join(root, "config/config.yaml")},
         ]
     )
-    
-    cf2 = Node(
-        package='crazyflie_simulation_pkg',
-        executable='control_services',
-        output='screen',
-        parameters=[
-            {'hover_height': 0.5},
-            {'robot_prefix': '/cf2'},
-            {'incoming_twist_topic': '/cmd_vel'},
-            {'max_ang_z_rate': 0.4},
-        ]
-    )
-
-    cf3 = Node(
-        package='crazyflie_simulation_pkg',
-        executable='control_services',
-        output='screen',
-        parameters=[
-            {'hover_height': 0.5},
-            {'robot_prefix': '/cf3'},
-            {'incoming_twist_topic': '/cmd_vel'},
-            {'max_ang_z_rate': 0.4},
-        ]
-    )
-        
-    cf4 = Node(
-        package='crazyflie_simulation_pkg',
-        executable='control_services',
-        output='screen',
-        parameters=[
-            {'hover_height': 0.5},
-            {'robot_prefix': '/cf4'},
-            {'incoming_twist_topic': '/cmd_vel'},
-            {'max_ang_z_rate': 0.4},
-        ]
-    )
-    
-    
+       
     rviz = Node(
         package='rviz2',
         executable='rviz2',
@@ -132,9 +92,6 @@ def generate_launch_description():
     return LaunchDescription([
         gz_sim,
         bridge,
-        cf1,
-        cf2,
-        cf3,
-        cf4,
+        cf_sim,
         rviz 
     ])
