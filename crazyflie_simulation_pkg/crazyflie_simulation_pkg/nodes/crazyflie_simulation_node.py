@@ -133,10 +133,11 @@ class CrazyflieSimulation(Node):
         state.roll_rate = self.current_odoms[name].twist.twist.angular.x
         state.pitch_rate = self.current_odoms[name].twist.twist.angular.y
         state.yaw_rate = self.current_odoms[name].twist.twist.angular.z
-        state.mr_front = self.current_multirangers[name].ranges[0]
+        state.mr_front = self.current_multirangers[name].ranges[2]
         state.mr_right = self.current_multirangers[name].ranges[1]
-        state.mr_back = self.current_multirangers[name].ranges[2]
+        state.mr_back = self.current_multirangers[name].ranges[0]
         state.mr_left = self.current_multirangers[name].ranges[3]
+        state.mr_up = 1000.0
         
         self.current_states[name] = state
         
@@ -162,6 +163,7 @@ class CrazyflieSimulation(Node):
         state_msg.multiranger[1] = state.mr_right
         state_msg.multiranger[2] = state.mr_back
         state_msg.multiranger[3] = state.mr_left
+        state_msg.multiranger[4] = state.mr_up
         
         publisher.publish(state_msg)
 
