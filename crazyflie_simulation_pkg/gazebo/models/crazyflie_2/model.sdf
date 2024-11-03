@@ -236,7 +236,7 @@ Copyright (c) 2024 Bitcraze
     <plugin
       filename="gz-sim-multicopter-control-system"
       name="gz::sim::systems::MulticopterVelocityControl">
-      <robotNamespace>cf2</robotNamespace>
+      <robotNamespace>/gz/cf2</robotNamespace>
       <commandSubTopic>cmd_vel</commandSubTopic>
       <enableSubTopic>enable</enableSubTopic>
       <comLinkName>crazyflie/body</comLinkName>

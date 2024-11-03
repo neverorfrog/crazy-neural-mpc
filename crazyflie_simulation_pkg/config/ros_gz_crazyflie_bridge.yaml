@@ -1,6 +1,6 @@
 ---
-- ros_topic_name: "/cf1/cmd_vel"
-  gz_topic_name: "/cf1/cmd_vel"
+- ros_topic_name: "/gz/cf1/cmd_vel"
+  gz_topic_name: "/gz/cf1/cmd_vel"
   ros_type_name: "geometry_msgs/msg/Twist"
   gz_type_name: "ignition.msgs.Twist"
   direction: ROS_TO_GZ
@@ -25,8 +25,8 @@
   gz_type_name: "ignition.msgs.LaserScan"
   direction: GZ_TO_ROS
 
-- ros_topic_name: "/cf2/cmd_vel"
-  gz_topic_name: "/cf2/cmd_vel"
+- ros_topic_name: "/gz/cf2/cmd_vel"
+  gz_topic_name: "/gz/cf2/cmd_vel"
   ros_type_name: "geometry_msgs/msg/Twist"
   gz_type_name: "ignition.msgs.Twist"
   direction: ROS_TO_GZ
@@ -51,8 +51,8 @@
   gz_type_name: "ignition.msgs.LaserScan"
   direction: GZ_TO_ROS
 
-- ros_topic_name: "/cf3/cmd_vel"
-  gz_topic_name: "/cf3/cmd_vel"
+- ros_topic_name: "/gz/cf3/cmd_vel"
+  gz_topic_name: "/gz/cf3/cmd_vel"
   ros_type_name: "geometry_msgs/msg/Twist"
   gz_type_name: "ignition.msgs.Twist"
   direction: ROS_TO_GZ
@@ -77,8 +77,8 @@
   gz_type_name: "ignition.msgs.LaserScan"
   direction: GZ_TO_ROS
 
-- ros_topic_name: "/cf4/cmd_vel"
-  gz_topic_name: "/cf4/cmd_vel"
+- ros_topic_name: "/gz/cf4/cmd_vel"
+  gz_topic_name: "/gz/cf4/cmd_vel"
   ros_type_name: "geometry_msgs/msg/Twist"
   gz_type_name: "ignition.msgs.Twist"
   direction: ROS_TO_GZ

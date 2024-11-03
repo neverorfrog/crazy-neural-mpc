@@ -15,6 +15,7 @@ class Position:
 class CrazyflieConfig:
     active: bool = False
     name: str = MISSING
+    incoming_twist_topic: str = MISSING
 
 
 @dataclass

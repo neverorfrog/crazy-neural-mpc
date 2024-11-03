@@ -6,9 +6,13 @@ height: 0.2
 crazyflies:
   - name: cf1
     active: True 
+    incoming_twist_topic: "/cf1/cmd_vel"
   - name: cf2
     active: True
+    incoming_twist_topic: "/cf2/cmd_vel"
   - name: cf3
     active: True
+    incoming_twist_topic: "/cf3/cmd_vel"
   - name: cf4
     active: True
+    incoming_twist_topic: "/cf4/cmd_vel"

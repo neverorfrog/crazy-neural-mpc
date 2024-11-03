@@ -32,6 +32,9 @@ class CrazyflieSimulation(Node):
         self.get_logger().info("CrazyflieSimulationNode started")
         for cf_config in self.config.crazyflies:
             self.get_logger().info(f"  - {cf_config.name}")
+            
+        self.max_ang_z_rate = self.config.max_ang_z_rate
+        self.takeoff_height = self.config.height
 
         # * CrazyflieSwarm
         self.swarm = []
@@ -44,23 +47,19 @@ class CrazyflieSimulation(Node):
         self.get_logger().info(f"Swarm: {self.swarm}")
 
         # * Publishers
-        self.velocity_publishers: Dict[str, Publisher] = {}
         velocity_publisher_rate = self.config.velocity_publisher_rate
         for name in self.swarm:
-            publisher = self.create_publisher(Twist, f"/{name}/cmd_vel", 10)
-            self.velocity_publishers[name] = publisher
+            publisher = self.create_publisher(Twist, f"/gz/{name}/cmd_vel", 10)
             self.create_timer(
                 1 / velocity_publisher_rate,
-                lambda name=name, publisher=publisher: self.velocity_callback(
+                lambda name=name, publisher=publisher: self.publisher_velocity_callback(
                     name, publisher
                 ),
             )
             
-        self.state_publishers: Dict[str, Publisher] = {}
         state_publisher_rate = self.config.state_publisher_rate
         for name in self.swarm:
             publisher = self.create_publisher(CrazyflieState, f"/{name}/state", 10)
-            self.state_publishers[name] = publisher
             self.create_timer(
                 1 / state_publisher_rate,
                 lambda name=name, publisher=publisher: self.state_callback(
@@ -68,11 +67,21 @@ class CrazyflieSimulation(Node):
                 ),
             )
 
-        # * Subscriptions
-        self.current_odoms: Dict[str, Odometry] = {}
-        for name in self.swarm:
-            self.current_odoms[name] = Odometry()
-        
+        # * Subscriptions        
+        self.velocity_subscribers: Dict[str, Subscription] = {}
+        for crazyflie_config in self.config.crazyflies:
+            if crazyflie_config.active is False:
+                continue
+            name = crazyflie_config.name
+            incoming_twist_topic = crazyflie_config.incoming_twist_topic
+            subscriber = self.create_subscription(
+                Twist,
+                incoming_twist_topic,
+                lambda msg, name=name: self.subscriber_velocity_callback(msg, name),
+                10,
+            )
+            self.velocity_subscribers[name] = subscriber
+                
         self.odom_subscribers: Dict[str, Subscription] = {}
         for name in self.swarm:
             self.odom_subscribers[name] = self.create_subscription(
@@ -81,11 +90,7 @@ class CrazyflieSimulation(Node):
                 lambda msg, name=name: self.odom_callback(msg, name),
                 10,
             )
-        
-        self.current_multirangers: Dict[str, LaserScan] = {}
-        for name in self.swarm:
-            self.current_multirangers[name] = LaserScan()
-        
+                
         self.multiranger_subscribers: Dict[str, Subscription] = {}
         for name in self.swarm:
             self.multiranger_subscribers[name] = self.create_subscription(
@@ -94,24 +99,23 @@ class CrazyflieSimulation(Node):
                 lambda msg, name=name: self.multiranger_callback(msg, name),
                 10,
             )
-        
-        self.cmd_vel_subscriber = self.create_subscription(
-            Twist, "/cmd_vel", self.cmd_vel_callback, 10
-        )
-        self.current_cmd_vel = Twist()
-
+                    
+        self.current_twist_commands: Dict[str, Twist] = {}
+        self.current_odoms: Dict[str, Odometry] = {}
+        self.current_multirangers: Dict[str, LaserScan] = {}
         self.current_states: Dict[str, CrazyState] = {}
+        self.takeoff_commands: Dict[str, bool] = {}
+        self.is_flying: Dict[str, bool] = {}
+        self.keep_height: Dict[str, bool] = {}
         for name in self.swarm:
+            self.current_twist_commands[name] = Twist()
+            self.current_odoms[name] = Odometry()
+            self.current_multirangers[name] = LaserScan()
             self.current_states[name] = CrazyState()
+            self.takeoff_commands[name] = False
+            self.is_flying[name] = False
+            self.keep_height[name] = False
             
-        self.max_ang_z_rate = self.config.max_ang_z_rate
-        self.takeoff_height = self.config.height
-        self.takeoff_command = False
-        self.is_flying = False
-        self.keep_height = False
-
-    def cmd_vel_callback(self, msg: Twist) -> None:
-        self.current_cmd_vel = msg
 
     def odom_callback(self, msg: Odometry, name: str) -> None:
         self.current_odoms[name] = msg
@@ -161,61 +165,54 @@ class CrazyflieSimulation(Node):
         
         publisher.publish(state_msg)
 
-    def velocity_callback(self, name: str, publisher: Publisher) -> None:
-        current_velocity_msg = self.current_cmd_vel
-        height_command = current_velocity_msg.linear.z
-        new_velocity_msg = Twist()
+    def subscriber_velocity_callback(self, msg: Twist, name: str) -> None:
+        self.current_twist_commands[name] = msg
 
-        # If the drone is flying, only allow to transfer the twist message
-        if self.is_flying:
-            new_velocity_msg.linear.x = current_velocity_msg.linear.x
-            new_velocity_msg.linear.y = current_velocity_msg.linear.y
-            new_velocity_msg.linear.z = current_velocity_msg.linear.z
-            new_velocity_msg.angular.x = current_velocity_msg.angular.x
-            new_velocity_msg.angular.y = current_velocity_msg.angular.y
-            new_velocity_msg.angular.z = current_velocity_msg.angular.z
-
-        # If not flying and receiving a velocity height command, takeoff
-        if height_command > 0 and not self.is_flying:
-            new_velocity_msg.linear.z = 0.5
+    def publisher_velocity_callback(self, name: str, publisher: Publisher) -> None:        
+        height_command = self.current_twist_commands[name].linear.z 
+        new_twist_msg = Twist()
+        if self.is_flying[name]:
+            new_twist_msg.linear.x = self.current_twist_commands[name].linear.x
+            new_twist_msg.linear.y = self.current_twist_commands[name].linear.y
+            new_twist_msg.linear.z = self.current_twist_commands[name].linear.z
+            new_twist_msg.angular.x = self.current_twist_commands[name].angular.x
+            new_twist_msg.angular.y = self.current_twist_commands[name].angular.y
+            new_twist_msg.angular.z = self.current_twist_commands[name].angular.z
+            
+        if height_command > 0 and not self.is_flying[name]:
+            new_twist_msg.linear.z = 0.5
             if self.current_states[name].z > self.takeoff_height:
-                # stop going up if height is reached
-                new_velocity_msg.linear.z = 0.0
-                self.current_cmd_vel.linear.z = 0.0
-                self.is_flying = True
+                new_twist_msg.linear.z = 0.0
+                self.current_twist_commands[name].linear.z = 0.0
+                self.is_flying[name] = True
                 self.get_logger().info('Takeoff completed')
-
-        # If flying and if the height command is negative, and it is below a certain height
-        # then consider it a land
-        if height_command < 0 and self.is_flying:
+                
+        if height_command < 0 and self.is_flying[name]:
             if self.current_states[name].z < 0.1:
-                new_velocity_msg.linear.z = 0.0
-                self.is_flying = False
-                self.keep_height = False
+                new_twist_msg.linear.z = 0.0
+                self.is_flying[name] = False
+                self.keep_height[name] = False
                 self.get_logger().info('Landing completed')
-
-        # Cap the angular rate command in the z axis
-        if abs(current_velocity_msg.angular.z) > self.max_ang_z_rate:
-            new_velocity_msg.angular.z = self.max_ang_z_rate * abs(current_velocity_msg.angular.z)/current_velocity_msg.angular.z
-
-        # If there is no control in height and the drone is flying, control and maintain the height
+                
+        if abs(self.current_twist_commands[name].angular.z) > self.max_ang_z_rate:
+            new_twist_msg.angular.z = self.max_ang_z_rate * abs(self.current_twist_commands[name].angular.z)/self.current_twist_commands[name].angular.z
+            
         tolerance = 1e-7
-        if abs(height_command) < tolerance and self.is_flying:
-            if not self.keep_height:
+        if abs(height_command) < tolerance and self.is_flying[name]:
+            if not self.keep_height[name]:
                 self.desired_height = self.current_states[name].z
-                self.keep_height = True
+                self.keep_height[name] = True
             else:
                 error = self.desired_height - self.current_states[name].z
-                new_velocity_msg.linear.z = error
+                new_twist_msg.linear.z = error
+                
+        if abs(height_command) > tolerance and self.is_flying[name]:
+            if self.keep_height[name]:
+                self.keep_height[name] = False
+                
+        publisher.publish(new_twist_msg)
 
-        # If there is control in height and the drone is flying, stop maintaining the height
-        if abs(height_command) > tolerance and self.is_flying:
-            if self.keep_height:
-                self.keep_height = False
-
-        publisher.publish(new_velocity_msg)
-
-
+        
 def main(args: Any = None) -> None:
     rclpy.init(args=args)
     crazyflie_node = CrazyflieSimulation()
