@@ -34,7 +34,7 @@ setup(
     entry_points={
         "console_scripts": [
             "crazyflie_swarm_exec = crazyflie_swarm_pkg.nodes.crazyflie_swarm_node:main",
-            "crazyflie_dock_exec = crazyflie_swarm_pkg.nodes.crazyflie_dock_node:main",
+            "crazyflie_teleop_exec = crazyflie_swarm_pkg.nodes.crazyflie_teleop_node:main",
         ],
     },
 )

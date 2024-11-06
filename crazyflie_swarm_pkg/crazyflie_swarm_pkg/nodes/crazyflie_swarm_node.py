@@ -69,7 +69,7 @@ class CrazyflieSwarmNode(Node):
         for name, _ in self.swarm.items():
             self.velocity_subscribers[name] = self.create_subscription(
                 Twist,
-                f"/{name}/velocity",
+                f"/{name}/cmd_vel",
                 lambda msg, name=name: self.velocity_callback(msg, name),
                 10,
             )

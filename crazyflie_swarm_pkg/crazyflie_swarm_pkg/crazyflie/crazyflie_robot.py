@@ -44,6 +44,7 @@ class CrazyflieRobot:
         # Connection
         self.__connection_timeout = 10  # seconds
         self.__connection_opened = False
+        self.__led_intensity = 0.0
 
         # Flow deck
         self.__flow_deck_attached = False
@@ -160,6 +161,15 @@ class CrazyflieRobot:
 
     # * Update
     def update(self):
+
+        # * Led sanity check
+        if self.__led_intensity == 0.0:
+            self.___led_intensity = 255.0
+        else:
+            self.__led_intensity.data = 255.0
+        self.set_led(self.__led_intensity)
+
+
         # * Handle take off and land
         z = self.state.z
         if not self.take_off_done and z >= self.default_take_off_height - 0.05:
