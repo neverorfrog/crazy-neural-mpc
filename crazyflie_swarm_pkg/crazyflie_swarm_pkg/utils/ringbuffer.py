@@ -6,10 +6,13 @@ class RingBuffer:
         self.size: int = size
         self.data = np.zeros(shape=(size, *shape), dtype=np.float32)
         self.index: int = 0
+        self.__filled = False
     
     def append(self, elem) -> None:
         self.data[self.index] = elem
         self.index = (self.index + 1) % self.size
+        if self.index == 0:
+            self.__filled = True
     
     def get_current(self) -> np.ndarray:
         if self.index == 0:
@@ -17,7 +20,9 @@ class RingBuffer:
         return self.__getitem__(self.index - 1).squeeze()
     
     def compute_mean(self) -> float:
-        return np.mean(self.data)
+        if self.__filled:
+            return np.mean(self.data)
+        return np.mean(self.data[:self.index])
 
     def __getitem__(self, index) -> np.ndarray:
         return self.data[index]  
