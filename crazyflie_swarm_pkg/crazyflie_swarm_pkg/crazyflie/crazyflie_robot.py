@@ -9,7 +9,7 @@ from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils.multiranger import Multiranger
 
 from crazyflie_swarm_pkg.crazyflie.crazyflie_state import CrazyState
-from crazyflie_swarm_pkg.utils import log
+from crazyflie_swarm_pkg.utils import log, RangeDirection, RingBuffer
 
 
 class CrazyflieRobot:
@@ -44,7 +44,6 @@ class CrazyflieRobot:
         # Connection
         self.__connection_timeout = 10  # seconds
         self.__connection_opened = False
-        self.__led_intensity = 0.0
 
         # Flow deck
         self.__flow_deck_attached = False
@@ -52,11 +51,24 @@ class CrazyflieRobot:
         self.flow_deck_attached_event.clear()
 
         # Multiranger
+        multiranger_buffer_size = 10
         self.multiranger = multiranger
         self.__multiranger_attached = False
         self.multiranger_attached_event = Event()
         self.multiranger_attached_event.clear()
         self.multiranger_sensor = Multiranger(self.scf)
+        self.__buffer: Dict[RangeDirection, RingBuffer] = {}
+        self.__buffer[RangeDirection.FRONT] = RingBuffer(multiranger_buffer_size, (1,))
+        self.__buffer[RangeDirection.RIGHT] = RingBuffer(multiranger_buffer_size, (1,))
+        self.__buffer[RangeDirection.BACK] = RingBuffer(multiranger_buffer_size, (1,))
+        self.__buffer[RangeDirection.LEFT] = RingBuffer(multiranger_buffer_size, (1,))
+        self.__buffer[RangeDirection.UP] = RingBuffer(multiranger_buffer_size, (1,))
+        self.__mean_buffer: Dict[RangeDirection, float] = {}
+        self.__mean_buffer[RangeDirection.FRONT] = 0.0
+        self.__mean_buffer[RangeDirection.RIGHT] = 0.0
+        self.__mean_buffer[RangeDirection.BACK] = 0.0
+        self.__mean_buffer[RangeDirection.LEFT] = 0.0
+        self.__mean_buffer[RangeDirection.UP] = 0.0
 
         self.take_off_done = False
         self.is_flying = False
@@ -66,7 +78,10 @@ class CrazyflieRobot:
         log(f"Connecting to Crazyflie {self.name} ...", self.logger)
         start_initialization = time.time()
         self.open_connection()
-
+        
+        # * Led sanity check
+        self.set_led(255.0)
+        
         self.scf.cf.param.add_update_callback(
             group="deck", name="bcFlow2", cb=self.flow_deck_attached_callback
         )
@@ -105,6 +120,11 @@ class CrazyflieRobot:
         log(f"Estimators of Crazyflie {self.name} started.", self.logger)
 
         log(f"Crazyflie {self.name} initialized", self.logger)
+        
+                
+        # * Led sanity check
+        self.set_led(0.0)
+        
         return True
 
     def destroy(self):
@@ -161,14 +181,19 @@ class CrazyflieRobot:
 
     # * Update
     def update(self):
-
-        # * Led sanity check
-        if self.__led_intensity == 0.0:
-            self.___led_intensity = 255.0
-        else:
-            self.__led_intensity.data = 255.0
-        self.set_led(self.__led_intensity)
-
+        
+        # * Multirange values (filled only if above a certain height)
+        if self.state.z > 0.1:
+            self.__buffer[RangeDirection.FRONT].append(self.multiranger_sensor.front)
+            self.__buffer[RangeDirection.RIGHT].append(self.multiranger_sensor.right)
+            self.__buffer[RangeDirection.BACK].append(self.multiranger_sensor.back)
+            self.__buffer[RangeDirection.LEFT].append(self.multiranger_sensor.left)
+            self.__buffer[RangeDirection.UP].append(self.multiranger_sensor.up)
+            self.__mean_buffer[RangeDirection.FRONT] = self.__buffer[RangeDirection.FRONT].compute_mean()
+            self.__mean_buffer[RangeDirection.RIGHT] = self.__buffer[RangeDirection.RIGHT].compute_mean()
+            self.__mean_buffer[RangeDirection.BACK] = self.__buffer[RangeDirection.BACK].compute_mean()
+            self.__mean_buffer[RangeDirection.LEFT] = self.__buffer[RangeDirection.LEFT].compute_mean()
+            self.__mean_buffer[RangeDirection.UP] = self.__buffer[RangeDirection.UP].compute_mean()
 
         # * Handle take off and land
         z = self.state.z
@@ -184,11 +209,11 @@ class CrazyflieRobot:
             self.take_off_done = False
             
         #* Handle multirange
-        if self.multiranger:            
-            if self.multiranger_sensor.front < self.emergency_stop_distance or \
-               self.multiranger_sensor.right < self.emergency_stop_distance or \
-               self.multiranger_sensor.back < self.emergency_stop_distance  or \
-               self.multiranger_sensor.left < self.emergency_stop_distance: 
+        if self.multiranger and self.take_off_done:            
+            if self.__mean_buffer[RangeDirection.FRONT] < self.emergency_stop_distance or \
+               self.__mean_buffer[RangeDirection.RIGHT] < self.emergency_stop_distance or \
+               self.__mean_buffer[RangeDirection.BACK] < self.emergency_stop_distance  or \
+               self.__mean_buffer[RangeDirection.LEFT] < self.emergency_stop_distance: 
                 log(f"Emergency stop for Crazyflie {self.name}", self.logger)
                 self.emergency_stop()
     
@@ -244,11 +269,11 @@ class CrazyflieRobot:
         return self.state
 
     def get_multiranger_data(self):
-        self.state.mr_front = self.multiranger_sensor.front
-        self.state.mr_right = self.multiranger_sensor.right
-        self.state.mr_back = self.multiranger_sensor.back
-        self.state.mr_left = self.multiranger_sensor.left
-        self.state.mr_up = self.multiranger_sensor.up
+        self.state.mr_front = self.__mean_buffer[RangeDirection.FRONT]
+        self.state.mr_right = self.__mean_buffer[RangeDirection.RIGHT]
+        self.state.mr_back = self.__mean_buffer[RangeDirection.BACK]
+        self.state.mr_left = self.__mean_buffer[RangeDirection.LEFT]
+        self.state.mr_up = self.__mean_buffer[RangeDirection.UP]
 
     def pose_estimator_callback(self, timestamp, data, logconf):
         self.state.x = data["stateEstimate.x"] + self.initial_position.x

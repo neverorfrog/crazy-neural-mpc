@@ -13,7 +13,7 @@ crazyflies:
       z: 0.0
 
   - name: cf2
-    active: True
+    active: False
     uri: radio://0/80/2M/E7E7E7E7E7
     height: 0.2
     multiranger: True
