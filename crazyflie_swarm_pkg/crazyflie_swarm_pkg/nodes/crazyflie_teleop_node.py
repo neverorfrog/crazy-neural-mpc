@@ -3,8 +3,6 @@ from typing import Any, Dict
 import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node, Publisher
-from std_msgs.msg import Float32
-from std_srvs.srv import Empty
 
 from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
 
@@ -26,7 +24,9 @@ class CrazyflieTeleopNode(Node):
 
         self.get_logger().info("CrazyflieTeleopNode started")
         for cf_config in self.config.crazyflies:
-            self.get_logger().info(f" - {cf_config.name}:\n  - uri: {cf_config.uri}\n  - active: {cf_config.active}")
+            self.get_logger().info(
+                f" - {cf_config.name}:\n  - uri: {cf_config.uri}\n  - active: {cf_config.active}"
+            )
 
         # * CrazyflieSwarm
         self.swarm: Dict[str] = {}

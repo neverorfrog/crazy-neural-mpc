@@ -32,9 +32,15 @@ class CrazyState:
     mr_left: float = 0.0
     mr_up: float = 0.0
 
+    # Initial Position
+    init_x: float = 0.0
+    init_y: float = 0.0
+    init_z: float = 0.0
+
     def __str__(self):
         return (
             f"Position: ({self.x:.2f}, {self.y:.2f}, {self.z:.2f})\n"
+            + f"Inital Position: ({self.init_x:.2f}, {self.init_y:.2f}, {self.init_z:.2f})\n"
             + f"Euler Orientation: ({self.roll:.2f}, {self.pitch:.2f}, {self.yaw:.2f})\n"
             + f"Linear Velocity: ({self.vx:.2f}, {self.vy:.2f}, {self.vz:.2f})\n"
             + f"Angular Velocity: ({self.roll_rate:.2f}, {self.pitch_rate:.2f}, {self.yaw_rate:.2f})\n"
@@ -43,6 +49,9 @@ class CrazyState:
 
     def get_position(self) -> np.ndarray:
         return np.array([self.x, self.y, self.z])
+
+    def get_initial_position(self) -> np.ndarray:
+        return np.array([self.init_x, self.init_y, self.init_z])
 
     def get_rotation_matrix(self) -> np.ndarray:
         R_roll = np.array(

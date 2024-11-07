@@ -54,6 +54,7 @@ class ForcesGenerator:
 
         # Obstacle avoidance forces, formula (3)
         for o in detected_obstacles:
+            continue
             obstacle_distance = o.rel_pos - self.config.dimensions.radius
 
             self_yaw = state.yaw

@@ -48,12 +48,16 @@ class Agent:
             )
             self.ros2_logger.info(f"Agent {self.name} - state: {state}\n")
             self.ros2_logger.info(f"- neighbors: {neighbors}")
-            detected_obstacles = self.detect_obstacles(state, neighbors)
-            for o in detected_obstacles:
+            detected_obstacles = self.detect_obstacles(state)
+            obstacles = self.classify_obstacles(neighbors, detected_obstacles)
+            self.ros2_logger.info(f"Number of obstacles: {len(obstacles)}")
+            for o in obstacles:
                 self.ros2_logger.info(f"obstacle: {o}")
             self.ros2_logger.info(
                 "----------------------------------------------------"
             )
+
+        return np.array([0.0, 0.0, 0.0]), 0.0
 
         # Compute the forces
         forces = self.forces_gen.get_forces(
@@ -88,7 +92,8 @@ class Agent:
         return v, omega
 
     def detect_obstacles(
-        self, state: CrazyState, neighbors: Dict[str, CrazyState]
+        self,
+        state: CrazyState,
     ) -> List[Obstacle]:
         """
         Detects obstacles around the agent based on its state and the states of its neighbors.
@@ -102,82 +107,116 @@ class Agent:
         2. Checks the agent's sensor readings in the front, left, back, right, and up directions.
         If an obstacle is detected within a threshold distance (2 units), it calculates the obstacle's relative position,
         converts it to an absolute position, and appends it to the list of detected obstacles.
-        3. Iterates over the detected obstacles to determine their type:
+        """
+        detected_obstacles: List[Obstacle] = []
+        obstacle_threshold = 2
+
+        if state.mr_front < obstacle_threshold:
+            obstacle_rel_pos = state.mr_front * np.array([1, 0, 0])
+            obstacle_abs_pos = state.rel2glob(obstacle_rel_pos)
+            detected_obstacles.append(
+                Obstacle(
+                    abs_pos=obstacle_abs_pos,
+                    direction=Direction.front,
+                    rel_pos=obstacle_rel_pos,
+                )
+            )
+
+        if state.mr_left < obstacle_threshold:
+            obstacle_rel_pos = state.mr_left * np.array([0, 1, 0])
+            obstacle_abs_pos = state.rel2glob(obstacle_rel_pos)
+            detected_obstacles.append(
+                Obstacle(
+                    abs_pos=obstacle_abs_pos,
+                    direction=Direction.left,
+                    rel_pos=obstacle_rel_pos,
+                )
+            )
+
+        if state.mr_back < obstacle_threshold:
+            obstacle_rel_pos = state.mr_back * np.array([-1, 0, 0])
+            obstacle_abs_pos = state.rel2glob(obstacle_rel_pos)
+            detected_obstacles.append(
+                Obstacle(
+                    abs_pos=obstacle_abs_pos,
+                    direction=Direction.back,
+                    rel_pos=obstacle_rel_pos,
+                )
+            )
+
+        if state.mr_right < obstacle_threshold:
+            obstacle_rel_pos = state.mr_right * np.array([0, -1, 0])
+            obstacle_abs_pos = state.rel2glob(obstacle_rel_pos)
+            detected_obstacles.append(
+                Obstacle(
+                    abs_pos=obstacle_abs_pos,
+                    direction=Direction.right,
+                    rel_pos=obstacle_rel_pos,
+                )
+            )
+
+        if state.mr_up < obstacle_threshold:
+            obstacle_rel_pos = state.mr_up * np.array([0, 0, 1])
+            obstacle_abs_pos = state.rel2glob(obstacle_rel_pos)
+            detected_obstacles.append(
+                Obstacle(
+                    abs_pos=obstacle_abs_pos,
+                    direction=Direction.up,
+                    rel_pos=obstacle_rel_pos,
+                )
+            )
+
+        return detected_obstacles
+
+    def classify_obstacles(
+        self,
+        neighbors: Dict[str, CrazyState],
+        detected_obstacles: List[Obstacle],
+    ) -> List[Obstacle]:
+        """
+
+        Args:
+            state (CrazyState): The current state of the agent, which includes sensor readings.
+            neighbors (Dict[str, CrazyState]): A dictionary of neighboring agents' states, keyed by their identifiers.
+        Returns:
+            List[Obstacle]: A list of classified obstacles, each with its absolute position, relative position, direction, and type.
+
+        1. Iterates over the detected obstacles to determine their type:
         - If the obstacle is below a certain height (0.1 units), it is classified as a floor.
         - If the obstacle is within a close distance (0.1 units) to any neighbor, it is classified as a drone.
         - Otherwise, it is classified as a generic obstacle.
-        4. Returns the list of detected obstacles.
+        2. Returns the list of detected obstacles by setting the type
         """
-        detected_obstacles: List[Obstacle] = []
 
-        if state.mr_front < 2:
-            obstacle_rel_pos = state.mr_front * np.array([1, 0, 0])
-            detected_obstacles.append(
-                Obstacle(
-                    abs_pos=state.rel2glob(obstacle_rel_pos),
-                    direction=Direction.front,
-                )
-            )
+        drone_treshold = 0.15
 
-        if state.mr_left < 2:
-            obstacle_rel_pos = state.mr_left * np.array([0, 1, 0])
-            detected_obstacles.append(
-                Obstacle(
-                    abs_pos=state.rel2glob(obstacle_rel_pos),
-                    direction=Direction.left,
-                )
-            )
-
-        if state.mr_back < 2:
-            obstacle_rel_pos = state.mr_back * np.array([-1, 0, 0])
-            detected_obstacles.append(
-                Obstacle(
-                    abs_pos=state.rel2glob(obstacle_rel_pos),
-                    direction=Direction.back,
-                )
-            )
-
-        if state.mr_right < 2:
-            obstacle_rel_pos = state.mr_right * np.array([0, -1, 0])
-            detected_obstacles.append(
-                Obstacle(
-                    abs_pos=state.rel2glob(obstacle_rel_pos),
-                    direction=Direction.right,
-                )
-            )
-
-        if state.mr_up < 2:
-            obstacle_rel_pos = state.mr_right * np.array([0, 0, 1])
-            detected_obstacles.append(
-                Obstacle(
-                    abs_pos=state.rel2glob(obstacle_rel_pos),
-                    direction=Direction.up,
-                )
-            )
-
-        self_state = state.get_position()
         for o in detected_obstacles:
             isObstacle = True
 
-            # if o.abs_pos[2] < 0.1:
-            #     isObstacle = False
-            #     o.type = ObstacleType.floor
-            #     continue
+            if o.abs_pos[2] < 0.1:
+                isObstacle = False
+                o.type = ObstacleType.floor
+                continue
 
             for _, neighbor in neighbors.items():
-                dist = np.linalg.norm(o.abs_pos - neighbor.get_position())
 
-                if dist < 0.1:  # TODO: make this a parameter, like "DRONE_CLASS_THRESHOLD"
+                dist = np.linalg.norm(
+                    o.abs_pos
+                    + neighbor.get_initial_position()
+                    - neighbor.get_position()
+                )
+
+                self.ros2_logger.info(f"Distance: {dist}")
+
+                if (
+                    dist < drone_treshold
+                ):  # TODO: make this a parameter, like "DRONE_CLASS_THRESHOLD"
                     isObstacle = False
                     o.type = ObstacleType.drone
                     break
 
             # Obstacles that aren't floors or drones are classified as generic obstacles
             if isObstacle:
-                obstacle_rel_pos = np.linalg.norm(self_state - o.abs_pos)
-                o.rel_pos = obstacle_rel_pos
                 o.type = ObstacleType.obstacle
-
-            self.ros2_logger.info(f"Detected obstacle: {o}")
 
         return detected_obstacles
