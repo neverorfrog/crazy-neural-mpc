@@ -34,7 +34,7 @@ class CrazyflieRobot:
         self.default_land_duration = 3
         self.default_height = 0.2
         self.default_velocity = 0.1
-        self.emergency_stop_distance = 0.5
+        self.emergency_stop_distance = 0.3 # TODO: put in config
 
         # State
         self.initial_position = initial_position
@@ -42,6 +42,9 @@ class CrazyflieRobot:
         self.state.init_x = initial_position.x
         self.state.init_y = initial_position.y
         self.state.init_z = initial_position.z
+        
+        log(f"{self.state}", self.logger)
+        
         self.estimators: Dict[str, LogConfig] = {}
 
         # Connection

@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class RingBuffer:
 
     def __init__(self, size: int, shape: tuple) -> None:
@@ -10,6 +9,8 @@ class RingBuffer:
         self.__filled = False
 
     def append(self, elem) -> None:
+        if type(elem) != float:
+            return
         if np.isnan(elem):
             return
         self.data[self.index] = elem

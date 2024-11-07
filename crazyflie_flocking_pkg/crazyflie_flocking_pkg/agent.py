@@ -20,7 +20,7 @@ class Agent:
         config: FlockingConfig,
         ros2_logger: RcutilsLogger = None,
     ):
-        self.forces_gen = ForcesGenerator(config)
+        self.forces_gen = ForcesGenerator(config, ros2_logger)
         self.ros2_logger = ros2_logger
         self.config = config
         self.name = name
@@ -40,37 +40,23 @@ class Agent:
         neighbors.pop(self.name)  # remove myself from neighbors
 
         # TODO: per ora si mettono solo in formazione
-        v_mig = np.array([0, 0, 0])
-
-        if self.name == "cf2":
-            self.ros2_logger.info(
-                "----------------------------------------------------"
-            )
-            self.ros2_logger.info(f"Agent {self.name} - state: {state}\n")
-            self.ros2_logger.info(f"- neighbors: {neighbors}")
-            detected_obstacles = self.detect_obstacles(state)
-            obstacles = self.classify_obstacles(neighbors, detected_obstacles)
-            self.ros2_logger.info(f"Number of obstacles: {len(obstacles)}")
-            for o in obstacles:
-                self.ros2_logger.info(f"obstacle: {o}")
-            self.ros2_logger.info(
-                "----------------------------------------------------"
-            )
-
-        return np.array([0.0, 0.0, 0.0]), 0.0
-
+        v_mig = np.array([4.0, 0, 0])
+        
+        # Obstacles
+        detected_obstacles = self.detect_obstacles(state)
+        obstacles = self.classify_obstacles(neighbors, detected_obstacles)
+        
         # Compute the forces
         forces = self.forces_gen.get_forces(
-            state, neighbors, detected_obstacles, v_mig
+            state, neighbors, obstacles, v_mig
         )
-        # self.ros2_logger.info(f"Agent {self.name} - forces: {forces}")
 
         overall_force = np.clip(
             np.sum(forces, axis=1),
             -self.config.bounds.force_max,
             self.config.bounds.force_max,
         )
-
+        
         # Compute the yaw mean
         target_yaw = (
             np.arctan2(target[1] - state.y, target[0] - state.x) - state.yaw
@@ -88,8 +74,20 @@ class Agent:
         omega = np.clip(
             omega, -self.config.bounds.omega_max, self.config.bounds.omega_max
         )
+        
+        self.ros2_logger.info("")
+        self.ros2_logger.info("----------------------")
+        self.ros2_logger.info(f"Agent {self.name}")
+        self.ros2_logger.info(f"State\n{state}")
+        self.ros2_logger.info(f"Number of obstacles: {len(obstacles)}")
+        self.ros2_logger.info(f"{np.round(forces[:, 0],2)}")
+        self.ros2_logger.info(f"{np.round(forces[:, 1],2)}")
+        self.ros2_logger.info(f"{np.round(forces[:, 2],2)}")
+        self.ros2_logger.info(f"{np.round(v,2)}")
+        self.ros2_logger.info("----------------------")
+        self.ros2_logger.info("")
 
-        return v, omega
+        return v, 0.0
 
     def detect_obstacles(
         self,
@@ -188,26 +186,24 @@ class Agent:
         2. Returns the list of detected obstacles by setting the type
         """
 
-        drone_treshold = 0.15
+        drone_treshold = 0.4
 
         for o in detected_obstacles:
             isObstacle = True
 
-            if o.abs_pos[2] < 0.1:
+            if o.abs_pos[2] < 0.05:
                 isObstacle = False
                 o.type = ObstacleType.floor
                 continue
 
-            for _, neighbor in neighbors.items():
+            for key, neighbor in neighbors.items():
 
                 dist = np.linalg.norm(
                     o.abs_pos
                     + neighbor.get_initial_position()
                     - neighbor.get_position()
                 )
-
-                self.ros2_logger.info(f"Distance: {dist}")
-
+                
                 if (
                     dist < drone_treshold
                 ):  # TODO: make this a parameter, like "DRONE_CLASS_THRESHOLD"

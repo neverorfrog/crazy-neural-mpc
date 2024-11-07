@@ -15,7 +15,7 @@ crazyflies:
   - name: cf2
     active: True
     uri: radio://0/80/2M/E7E7E7E7E7
-    height: 0.2
+    height: 0.3
     multiranger: True
     initial_position:
       x: 0.0
@@ -23,21 +23,21 @@ crazyflies:
       z: 0.0
 
   - name: cf3
-    active: True
+    active: False
     uri: radio://0/80/2M/E7E7E7E7E8
     height: 0.3
     multiranger: True
     initial_position:
-      x: 0.5
+      x: 1.0
       y: 0.0
       z: 0.0
 
   - name: cf4
     active: False
     uri: radio://0/80/2M/E7E7E7E7E9
-    height: 0.2
+    height: 0.3
     multiranger: True
     initial_position:
-      x: 0.0
+      x: 1.0
       y: 0.0
       z: 0.0
