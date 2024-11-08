@@ -1,36 +1,76 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32
+from crazyflie_swarm_interfaces.msg import CrazyflieState
+from crazyflie_swarm_pkg.crazyflie.crazyflie_state import CrazyState
 import matplotlib.pyplot as plt
+from crazyflie_simulation_pkg.utils import World
+from crazyflie_simulation_pkg.utils import SwarmConfig, load_config
+
+from ament_index_python.packages import get_package_share_directory
+import numpy as np
+
+import yaml
+from omegaconf import OmegaConf
+
+import os
+
+root = get_package_share_directory("crazyflie_simulation_pkg")
+file_path = os.path.join(root, "config", "msg_config.yaml")
+
+with open(file_path, 'r') as file:
+    config = OmegaConf.create(yaml.safe_load(file))
 
 class PlotNode(Node):
     def __init__(self):
         super().__init__('plot_node')
-        self.subscription = self.create_subscription(
-            Float32, '/clock', self.listener_callback, 10
+
+        # * Load Config
+        self.declare_parameter("swarm_config_path", "")
+        swarm_config_path = (
+            self.get_parameter("swarm_config_path")
+            .get_parameter_value()
+            .string_value
         )
-        self.data = []
-        plt.ion()
-        self.fig, self.ax = plt.subplots()
-        self.line, = self.ax.plot([], [])
-        self.ax.set_xlim(0, 100)
-        self.ax.set_ylim(-1, 1)
+        swarm_config = load_config(swarm_config_path, SwarmConfig)
+        self.config = swarm_config
+
+        self.max_ang_z_rate = self.config.max_ang_z_rate
+        self.takeoff_height = self.config.height
+
+        # * CrazyflieSwarm
+        self.swarm = []
+        for crazyflie_config in self.config.crazyflies:
+            if crazyflie_config.active is False:
+                continue
+            name = crazyflie_config.name
+            self.swarm.append(name)
+
+        self.states = {}
+        self.drones = {}
+
+        for name in self.swarm:
+            self.get_logger().info(f"  - {name}")
+            self.subscription = self.create_subscription(
+                CrazyflieState, f'/{name}/state', lambda msg, name=name: self.listener_callback(msg, name), 10
+            )
+            self.states[name] = CrazyState()
+            self.drones[name] = self.states[name].toDrone(name, config)
+
+        self.world = World(True, False)
         self.get_logger().info("CrazyfliePlotNode started")
 
-    def listener_callback(self, msg):
-        self.get_logger().info("Listener callback")
-        self.get_logger().info(f"Message received: {msg.data}")
-        self.data.append(msg.data)
-        self.update_plot()
+    def listener_callback(self, msg, name):        
+        state = CrazyState().fromMsg(msg)
 
-    def update_plot(self):
-        self.get_logger().info(f"Data: {self.data}")
-        self.line.set_xdata(range(len(self.data)))
-        self.line.set_ydata(self.data)
-        self.ax.relim()
-        self.ax.autoscale_view()
-        plt.draw()
-        plt.pause(0.01)
+        self.states[name] = state
+        self.update_plot(name)
+
+    def update_plot(self, name):
+        #self.get_logger().info(f"Data: {self.states[name][-1]}")
+
+        self.drones[name] = self.states[name].toDrone(name, config)
+        
+        self.world.plot2d(self.drones) #, title = "t = " + str(np.round(robot.getTime(), 2)) + "s")
 
 def main(args=None):
     rclpy.init(args=args)

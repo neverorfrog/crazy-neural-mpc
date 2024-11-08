@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 
 import numpy as np
+import crazyflie_simulation_pkg.utils.stringer as stringer
 
+colors = ['b', 'g', 'r', 'c', 'm', 'y', 'olive', 'orange', 'deeppink','turquoise']
 
 @dataclass
 class CrazyState:
@@ -46,6 +48,48 @@ class CrazyState:
             + f"Angular Velocity: ({self.roll_rate:.2f}, {self.pitch_rate:.2f}, {self.yaw_rate:.2f})\n"
             + f"Multiranger Data: ({self.mr_front:.2f}, {self.mr_right:.2f}, {self.mr_back:.2f}, {self.mr_left:.2f}, {self.mr_up:.2f})"
         )
+    
+    def fromMsg(self, msg):
+        self.x = msg.position[0]
+        self.y = msg.position[1]
+        self.z = msg.position[2]
+        self.roll = msg.euler_orientation[0]
+        self.pitch = msg.euler_orientation[1]
+        self.yaw = msg.euler_orientation[2]
+        self.vx = msg.linear_velocity[0]
+        self.vy = msg.linear_velocity[1]
+        self.vz = msg.linear_velocity[2]
+        self.roll_rate = msg.angular_velocity[0]
+        self.pitch_rate = msg.angular_velocity[1]
+        self.yaw_rate = msg.angular_velocity[2]
+        self.mr_front = msg.multiranger[0]
+        self.mr_right = msg.multiranger[1]
+        self.mr_back = msg.multiranger[2]
+        self.mr_left = msg.multiranger[3]
+        self.mr_up = msg.multiranger[4]
+
+        return self
+    def toDrone(self, name, config):
+        dr = {
+                config.name : name,
+                config.color : colors[int(name[-1])],
+                config.scope_pose: [0] *6,
+                config.scope_dists: [0] *4,
+                config.forces: '',
+                config.scope_velocity: [0] *2,
+                config.obj_detected: '',
+                config.des_v: ''
+            }
+        
+        dr[config.scope_pose] = [self.x, self.y, self.z, self.roll, self.pitch, self.yaw]
+        dr[config.scope_dists] = [self.mr_front, self.mr_right, self.mr_back, self.mr_left]
+        dr[config.forces] = '0,0,0,0,0,0,0,0,0' 
+        dr[config.scope_velocity] = [self.vx, self.vy]
+        #dr[config.obj_detected] = self.get_objects()
+        dr[config.des_v] = stringer.string_velocity_noname(self.vx, self.vy)
+        
+        return dr
+
 
     def get_position(self) -> np.ndarray:
         return np.array([self.x, self.y, self.z])

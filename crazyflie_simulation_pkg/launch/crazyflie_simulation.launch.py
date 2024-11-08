@@ -57,7 +57,7 @@ def generate_launch_description():
         ),
         launch_arguments={
             "gz_args": PathJoinSubstitution(
-                [gz_model_path, "worlds", "crazyflie_world.sdf -r -s"]
+                [gz_model_path, "worlds", "crazyflie_world.sdf -r"] # -s to run in headless mode (without GUI)
             )
         }.items(),
     )
@@ -95,7 +95,10 @@ def generate_launch_description():
     plotter = Node(
         package="crazyflie_simulation_pkg",
         executable="crazyflie_plot_exec",
-        output='screen'
+        output='screen',
+        parameters=[
+            {"swarm_config_path": os.path.join(root, "config/config.yaml")},
+        ],
     )
 
     return LaunchDescription([gz_sim, bridge, cf_sim, plotter]) #, rviz])
