@@ -77,6 +77,7 @@ class PlotNode(Node):
     def update_plot(self, name):
         #self.get_logger().info(f"Data: {self.states[name][-1]}")
 
+        # Moving to the plotting convention - state -> drone
         self.drones[name] = self.states[name].toDrone(name, config)
         
         self.world.plot2d(self.drones) #, title = "t = " + str(np.round(robot.getTime(), 2)) + "s")
