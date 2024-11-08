@@ -1,5 +1,3 @@
-flying_attitude: 1
-
 front: 0
 left: 1
 back: 2
@@ -23,38 +21,6 @@ option: "option"
 forces: "forces"
 des_v: "des_vel"
 obj_detected: "obj_detected"
-
-radius: 0.05  # Crazyflie radius in Webots
-max_vis_objs: 2 # Max distance vibility objects
-
-d_eq: 1     # Equilibrium distance
-k_o: 2     # Obstacle avoidance force gain
-k_m: 1     # Migration force gain
-
-# Inter-robot parameters - https://www.desmos.com/calculator/5eqw5yllvy
-k_r: 3       # Inter-robot force gain
-lj_m: -2       # Maximum inter-robot attraction (keep it negative)
-lj_exp: 5      # Exponent for inter-robot attraction
-lj_switch: 1.65
-
-neigh_inter_num: 3 # Number of neighbors considered for inter-robot force
-
-# Velocities parameters
-k_l: 0.15
-k_a: 0.2 # 0.1
-v_min: 0 #-1e7 #0.05
-v_max: 1 #1.2
-omega_min: -1.5 #-1e7 #-6
-omega_max: 1.5 #1e7 #6
-a_max: 1
-force_max: 4
-angle_offset_max: 30  # in degrees
-
-# Decision parameters
-commit_cooldown: 10
-num_options: 8
-k: 0.5
-h: 0.2
 
 # Communication keys
 scope_pose: 'POSE'

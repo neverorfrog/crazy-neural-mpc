@@ -16,8 +16,8 @@ from crazyflie_plotter_pkg.utils import Plotter
 import crazyflie_plotter_pkg.utils.stringer as stringer
 
 class World():
-    def __init__(self, VIEW_2D, PLOT_GRAPHS):
-        self.plotter = Plotter(VIEW_2D, PLOT_GRAPHS)
+    def __init__(self, VIEW_2D, PLOT_GRAPHS, config):
+        self.plotter = Plotter(VIEW_2D, PLOT_GRAPHS, config)
 
         self.obs_db = []
 

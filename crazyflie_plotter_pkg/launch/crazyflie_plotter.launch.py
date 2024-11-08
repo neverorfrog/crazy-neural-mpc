@@ -23,7 +23,8 @@ def generate_launch_description():
     # Configure ROS nodes for launch
 
     # Setup project paths
-    root = get_package_share_directory("crazyflie_simulation_pkg")
+    flocking_root = get_package_share_directory("crazyflie_flocking_pkg")
+    simulation_root = get_package_share_directory("crazyflie_simulation_pkg")
     gz_model_path = os.getenv("GZ_SIM_RESOURCE_PATH")
     if gz_model_path is None:
         raise EnvironmentError("GZ_SIM_RESOURCE_PATH is not set.")
@@ -33,7 +34,10 @@ def generate_launch_description():
         executable="crazyflie_plot_exec",
         output='screen',
         parameters=[
-            {"swarm_config_path": os.path.join(root, "config/config.yaml")},
+            {"swarm_config_path": os.path.join(simulation_root, "config/config.yaml"),
+             "flocking_config_path": os.path.join(
+                    flocking_root, "config/config.yaml"
+                ),},
         ],
     )
 

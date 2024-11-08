@@ -3,7 +3,7 @@ velocity_publisher_rate: 5.0
 
 crazyflies:
   - name: cf1
-    active: False
+    active: True
     uri: radio://0/80/2M/E7E7E7E7E6
     height: 0.2
     multiranger: False
@@ -23,7 +23,7 @@ crazyflies:
       z: 0.0
 
   - name: cf3
-    active: False
+    active: True
     uri: radio://0/80/2M/E7E7E7E7E8
     height: 0.3
     multiranger: True
@@ -33,7 +33,7 @@ crazyflies:
       z: 0.0
 
   - name: cf4
-    active: False
+    active: True
     uri: radio://0/80/2M/E7E7E7E7E9
     height: 0.3
     multiranger: True

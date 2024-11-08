@@ -5,6 +5,7 @@ from crazyflie_swarm_pkg.crazyflie.crazyflie_state import CrazyState
 import matplotlib.pyplot as plt
 from crazyflie_plotter_pkg.utils import World
 from crazyflie_plotter_pkg.utils import SwarmConfig, load_config
+from crazyflie_flocking_pkg.utils.configuration import FlockingConfig
 
 from ament_index_python.packages import get_package_share_directory
 import numpy as np
@@ -25,6 +26,15 @@ class PlotNode(Node):
         super().__init__('plot_node')
 
         # * Load Config
+        self.declare_parameter("flocking_config_path", "")
+        flocking_config_path = (
+            self.get_parameter("flocking_config_path")
+            .get_parameter_value()
+            .string_value
+        )
+        flocking_config = load_config(flocking_config_path, FlockingConfig)
+        self.flocking_config = flocking_config
+
         self.declare_parameter("swarm_config_path", "")
         swarm_config_path = (
             self.get_parameter("swarm_config_path")
@@ -55,7 +65,7 @@ class PlotNode(Node):
             self.states[name] = CrazyState()
             self.drones[name] = self.states[name].toDrone(name, config)
 
-        self.world = World(True, False)
+        self.world = World(config.view_2d, config.plot_graphs, flocking_config)
         self.get_logger().info("CrazyfliePlotNode started")
 
     def listener_callback(self, msg, name):        

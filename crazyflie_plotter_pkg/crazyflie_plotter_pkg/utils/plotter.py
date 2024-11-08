@@ -13,7 +13,6 @@ file_path = os.path.join(root, "config", "msg_config.yaml")
 with open(file_path, 'r') as file:
     config = OmegaConf.create(yaml.safe_load(file))
 
-NODE = config.node
 NAME = config.name
 COLOR = config.color
 colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
@@ -25,7 +24,9 @@ FLOOR = config.floor
 obs_db = []
 
 class Plotter():
-    def __init__(self, plot2d=True, plotGraphs=True):
+    def __init__(self, plot2d, plotGraphs, flock_config):
+
+        self.flockingConfig = flock_config
 
         if plot2d:
             #plt.ion()       
@@ -52,12 +53,12 @@ class Plotter():
 
         p = d[config.scope_pose][:2]
         #drone = patches.Circle((p[0], p[1]), config.radius, fill=True, label = d[NAME], color=d[COLOR])
-        drone_back = patches.Wedge((p[0], p[1]), config.radius, 90 + np.rad2deg(yaw), 270 + np.rad2deg(yaw), fill=True, label=d[NAME], color=d[COLOR])
+        drone_back = patches.Wedge((p[0], p[1]), self.flockingConfig.dimensions.radius, 90 + np.rad2deg(yaw), 270 + np.rad2deg(yaw), fill=True, label=d[NAME], color=d[COLOR])
 
-        xy = get_triangle(p[0:2], yaw, config.radius)
+        xy = get_triangle(p[0:2], yaw, self.flockingConfig.dimensions.radius)
         drone_front = patches.Polygon(xy, facecolor=d[COLOR], fill=True)
 
-        bound = patches.Circle((p[0], p[1]), config.d_eq/2 + config.radius, fill = False, color=d[COLOR], ls='--')
+        bound = patches.Circle((p[0], p[1]), self.flockingConfig.dimensions.d_eq/2 + self.flockingConfig.dimensions.radius, fill = False, color=d[COLOR], ls='--')
         plt.gca().add_patch(drone_back)
         plt.gca().add_patch(drone_front)
         plt.gca().add_patch(bound)
