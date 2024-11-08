@@ -30,6 +30,8 @@ def generate_launch_description():
     root = get_package_share_directory("crazyflie_simulation_pkg")
     pkg_ros_gz_sim = get_package_share_directory("ros_gz_sim")
     gz_model_path = os.getenv("GZ_SIM_RESOURCE_PATH")
+    if gz_model_path is None:
+        raise EnvironmentError("GZ_SIM_RESOURCE_PATH non è impostato.")
 
     # Load the SDF file from "description" package
     sdf_file = os.path.join(gz_model_path, "crazyflie_1", "model.sdf")
