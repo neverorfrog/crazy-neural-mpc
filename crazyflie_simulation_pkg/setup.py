@@ -60,6 +60,7 @@ setup(
     entry_points={
         "console_scripts": [
             "crazyflie_simulation_exec = crazyflie_simulation_pkg.nodes.crazyflie_simulation_node:main",
+            "crazyflie_plot_exec = crazyflie_simulation_pkg.nodes.crazyflie_plot_node:main",
         ],
     },
 )
