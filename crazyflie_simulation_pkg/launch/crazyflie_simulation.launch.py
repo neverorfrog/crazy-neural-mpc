@@ -101,4 +101,4 @@ def generate_launch_description():
         ],
     )
 
-    return LaunchDescription([gz_sim, bridge, cf_sim, plotter]) #, rviz])
+    return LaunchDescription([gz_sim, bridge, cf_sim]) #, plotter]) #, rviz])

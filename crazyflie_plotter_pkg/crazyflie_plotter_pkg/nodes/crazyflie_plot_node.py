@@ -3,8 +3,8 @@ from rclpy.node import Node
 from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_pkg.crazyflie.crazyflie_state import CrazyState
 import matplotlib.pyplot as plt
-from crazyflie_simulation_pkg.utils import World
-from crazyflie_simulation_pkg.utils import SwarmConfig, load_config
+from crazyflie_plotter_pkg.utils import World
+from crazyflie_plotter_pkg.utils import SwarmConfig, load_config
 
 from ament_index_python.packages import get_package_share_directory
 import numpy as np
@@ -14,7 +14,7 @@ from omegaconf import OmegaConf
 
 import os
 
-root = get_package_share_directory("crazyflie_simulation_pkg")
+root = get_package_share_directory("crazyflie_plotter_pkg")
 file_path = os.path.join(root, "config", "msg_config.yaml")
 
 with open(file_path, 'r') as file:
