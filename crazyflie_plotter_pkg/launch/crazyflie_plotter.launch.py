@@ -29,7 +29,7 @@ def generate_launch_description():
         raise EnvironmentError("GZ_SIM_RESOURCE_PATH is not set.")
 
     plotter = Node(
-        package="crazyflie_simulation_pkg",
+        package="crazyflie_plotter_pkg",
         executable="crazyflie_plot_exec",
         output='screen',
         parameters=[

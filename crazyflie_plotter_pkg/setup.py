@@ -27,7 +27,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            "crazyflie_plot_exec = crazyflie_simulation_pkg.nodes.crazyflie_plot_node:main",
+            "crazyflie_plot_exec = crazyflie_plotter_pkg.nodes.crazyflie_plot_node:main",
         ],
     },
 )

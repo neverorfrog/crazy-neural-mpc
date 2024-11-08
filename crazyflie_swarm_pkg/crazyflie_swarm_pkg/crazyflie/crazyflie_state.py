@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 import numpy as np
-import crazyflie_simulation_pkg.utils.stringer as stringer
+import crazyflie_plotter_pkg.utils.stringer as stringer
 
 colors = ['b', 'g', 'r', 'c', 'm', 'y', 'olive', 'orange', 'deeppink','turquoise']
 

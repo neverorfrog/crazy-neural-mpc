@@ -92,13 +92,4 @@ def generate_launch_description():
         output="screen",
     )
 
-    plotter = Node(
-        package="crazyflie_simulation_pkg",
-        executable="crazyflie_plot_exec",
-        output='screen',
-        parameters=[
-            {"swarm_config_path": os.path.join(root, "config/config.yaml")},
-        ],
-    )
-
-    return LaunchDescription([gz_sim, bridge, cf_sim]) #, plotter]) #, rviz])
+    return LaunchDescription([gz_sim, bridge, cf_sim]) #, rviz])
