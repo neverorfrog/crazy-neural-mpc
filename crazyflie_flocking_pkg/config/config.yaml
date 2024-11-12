@@ -1,5 +1,5 @@
 dimensions:
-  d_eq: 1.1        # Equilibrium distance [m]
+  d_eq: 1        # Equilibrium distance [m]
   radius: 0.2      # Radius of the robots [m]
   max_vis_objs: 2  # Max distance of visibility [m]
 
@@ -9,13 +9,13 @@ gains:
   k_m: 0.8      # Migration force gain
   k_al: 1       # Alignment force gain 
   k_l: 0.05     # Linear Velocity gain
-  k_a: 7.0     # Angular Velocity gain
+  k_a: 5.0     # Angular Velocity gain
 
 bounds:
   v_min: 0
   v_max: 0.5
-  omega_min: -7
-  omega_max: 7
+  omega_min: -10
+  omega_max: 10
   a_max: 2 
   force_max: 4
   angle_offset_max: 30  # in degrees
