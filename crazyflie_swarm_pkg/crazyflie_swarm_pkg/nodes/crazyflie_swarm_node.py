@@ -4,6 +4,7 @@ from typing import Dict
 import cflib.crtp as crtp
 import rclpy
 from geometry_msgs.msg import Twist
+from std_srvs.srv import Empty
 from rclpy.node import Node, Publisher, Subscription
 from std_msgs.msg import Float32
 
@@ -42,6 +43,8 @@ class CrazyflieSwarmNode(Node):
             name = crazyflie_config.name
             multiranger = crazyflie_config.multiranger
             initial_position = crazyflie_config.initial_position
+            height = crazyflie_config.takeoff_height
+            duration = crazyflie_config.takeoff_duration
             crazyflie_robot = CrazyflieRobot(
                 uri=uri,
                 name=name,
@@ -50,6 +53,8 @@ class CrazyflieSwarmNode(Node):
                 logger=self.get_logger(),
                 multiranger=multiranger,
                 initial_position=initial_position,
+                default_take_off_height=height,
+                default_take_off_duration=duration
             )
             while not crazyflie_robot.initialize():
                 time.sleep(0.5)
@@ -96,7 +101,7 @@ class CrazyflieSwarmNode(Node):
         self.land_service = self.create_service(
             Land, "/land", self.land_service_callback
         )
-
+        
         # * Timers
         for name, _ in self.swarm.items():
             self.create_timer(0.1, lambda name=name: self.update_robot(name))

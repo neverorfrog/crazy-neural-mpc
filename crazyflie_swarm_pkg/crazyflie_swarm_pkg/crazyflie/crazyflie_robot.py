@@ -22,6 +22,8 @@ class CrazyflieRobot:
         logger=None,
         multiranger=False,
         initial_position=None,
+        default_take_off_height=0.2,
+        default_take_off_duration=3
     ):
         self.uri = uri
         self.name = name
@@ -29,8 +31,8 @@ class CrazyflieRobot:
         self.scf = SyncCrazyflie(self.uri, cf=self.cf)
         self.logger = logger
 
-        self.default_take_off_height = 0.2
-        self.default_take_off_duration = 3
+        self.default_take_off_height = default_take_off_height
+        self.default_take_off_duration = default_take_off_duration
         self.default_land_duration = 3
         self.default_height = 0.2
         self.default_velocity = 0.1

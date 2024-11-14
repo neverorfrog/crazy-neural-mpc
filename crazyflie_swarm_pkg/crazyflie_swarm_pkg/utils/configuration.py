@@ -16,7 +16,8 @@ class CrazyflieConfig:
     active: bool = False
     name: str = MISSING
     uri: str = MISSING
-    height: float = MISSING
+    takeoff_height: float = MISSING
+    takeoff_duration: float = MISSING
     multiranger: bool = False
     initial_position: Position = MISSING
 
