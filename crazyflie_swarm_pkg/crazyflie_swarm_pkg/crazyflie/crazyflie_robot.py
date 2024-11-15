@@ -258,13 +258,7 @@ class CrazyflieRobot:
 
     # * Commands
     def take_off(self, absolute_height=None, duration=None):
-        if not self.__connection_opened:
-            raise Exception("Connection not opened")
-        if not self.__flow_deck_attached:
-            raise Exception("Flow deck not attached")
-        if self.multiranger and not self.__multiranger_attached:
-            raise Exception("Multiranger not attached")
-
+        self.sanity_check()
         if absolute_height is None:
             absolute_height = self.default_take_off_height
         if duration is None:
@@ -272,27 +266,53 @@ class CrazyflieRobot:
         self.cf.commander.send_hover_setpoint(0, 0, 0, absolute_height)
 
     def land(self, duration=None):
-        self.is_flying = False
+        self.sanity_check()
+        if not self.is_flying:
+            log(f"Not flying {self.name}", self.logger)
+            return
         if duration is None:
             duration = self.default_land_duration
         self.cf.commander.send_velocity_world_setpoint(0, 0, -0.05, 0)
+        self.is_flying = False
 
     def emergency_stop(self):
         self.cf.commander.send_stop_setpoint()
-
-    def set_velocity(self, vx, vy, yaw_rate):
+        
+    def sanity_check(self) -> None:
         if not self.__connection_opened:
             raise Exception("Connection not opened")
         if not self.__flow_deck_attached:
             raise Exception("Flow deck not attached")
         if self.multiranger and not self.__multiranger_attached:
             raise Exception("Multiranger not attached")
+
+    def set_velocity(self, vx, vy, yaw_rate):
+        self.sanity_check()
         if not self.is_flying:
             log(f"Not flying {self.name}", self.logger)
             return
         self.cf.commander.send_hover_setpoint(
             vx, vy, yaw_rate, self.default_take_off_height
         )
+        
+    def set_attitude(self, roll, pitch, yaw_rate, thrust):
+        self.sanity_check()
+        if not self.is_flying:
+            log(f"Not flying {self.name}", self.logger)
+            return
+        self.cf.commander.send_setpoint(
+            roll, pitch, yaw_rate, thrust
+        )
+        
+    def set_position(self, x, y, z, yaw):
+        self.sanity_check()
+        if not self.is_flying:
+            log(f"Not flying {self.name}", self.logger)
+            return
+        self.cf.commander.send_position_setpoint(
+            x, y, z, yaw
+        )
+
 
     # * Setters
     def set_led(self, intensity):
