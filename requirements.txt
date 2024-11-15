@@ -3,3 +3,4 @@ numpy
 catkin_pkg
 lark
 cflib
+casadi==3.6.7
