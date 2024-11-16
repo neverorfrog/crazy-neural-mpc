@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 import rclpy
 from geometry_msgs.msg import Twist
+from std_msgs.msg import String
 from rclpy.node import Node, Publisher, Subscription
 
 from crazyflie_flocking_pkg.agent import Agent
@@ -10,6 +11,9 @@ from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_pkg.crazyflie import CrazyState
 from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
 
+import crazyflie_plotter_pkg.utils.stringer as stringer
+
+from crazyflie_flocking_pkg.utils.definitions import Obstacle
 
 class CrazyflieFlockingNode(Node):  # type: ignore
     def __init__(self):
@@ -63,11 +67,13 @@ class CrazyflieFlockingNode(Node):  # type: ignore
         velocity_publisher_rate = self.swarm_config.velocity_publisher_rate
         for name, _ in self.swarm.items():
             publisher = self.create_publisher(Twist, f"/{name}/cmd_vel", 10)
+            forcePublisher = self.create_publisher(String, f"/{name}/force", 10)
+            obsPublisher = self.create_publisher(String, f"/{name}/obstacles", 10)
             self.cmd_vel_publishers[name] = publisher
             self.create_timer(
                 1 / velocity_publisher_rate,
-                lambda name=name, publisher=publisher: self.cmd_vel_callback(
-                    name, publisher
+                lambda name=name, publisher=publisher, forcePublisher=forcePublisher: self.cmd_vel_callback(
+                    name, publisher, forcePublisher, obsPublisher
                 ),
             )
 
@@ -82,14 +88,14 @@ class CrazyflieFlockingNode(Node):  # type: ignore
             )
             self.state_subscribers[name] = subscriber
 
-    def cmd_vel_callback(self, name: str, publisher: Publisher) -> None:
+    def cmd_vel_callback(self, name: str, publisher: Publisher, publisherForces: Publisher, publisherObstacles: Publisher) -> None:
         """
         Callback function for the cmd_vel publisher. Takes the desired
         velocities computed by the flocking algorithm and sends them to the dock
         node.
         """
         target = [1, 0, self.swarm_config.crazyflies[0].height]
-        v, yaw_rate = self.agents[name].compute_velocities(
+        v, yaw_rate, forces, obstacles = self.agents[name].compute_velocities(
             self.swarm_state, target
         )
         cmd_vel = Twist()
@@ -100,6 +106,17 @@ class CrazyflieFlockingNode(Node):  # type: ignore
         cmd_vel.angular.y = 0.0
         cmd_vel.angular.z = yaw_rate
         publisher.publish(cmd_vel)
+
+        msg = String()
+        msg.data = stringer.string_forces(forces)
+        publisherForces.publish(msg)
+
+        obstList = []
+        for obstacle in obstacles:
+            obstList.append([obstacle.abs_pos, obstacle.direction.value, obstacle.type.value])
+
+        msg.data = stringer.string_objects(obstList)
+        publisherObstacles.publish(msg)
 
     def state_callback(self, msg: CrazyflieState, name: str) -> None:
         """

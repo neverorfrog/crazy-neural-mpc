@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt, patches
 from ament_index_python.packages import get_package_share_directory
 import numpy as np
+from crazyflie_flocking_pkg.utils.definitions import ObstacleType
 
 import yaml
 from omegaconf import OmegaConf
@@ -30,7 +31,7 @@ class Plotter():
 
         if plot2d:
             #plt.ion()       
-            self.fig_2d = plt.figure("2D View")
+            self.fig_2d = plt.figure("2D View", figsize=(12, 8))
             #self.line, = self.ax.plot([], [])
             #self.ax.set_xlim(0, 100)
             #self.ax.set_ylim(-1, 1)
@@ -46,7 +47,7 @@ class Plotter():
             plt.gcf().clear()
 
         plt.gca().set_aspect('equal')
-        side = 4
+        side = 6
         plt.gca().set(xlim=(-side, side), ylim=(-side, side))
 
         d = myDrone
@@ -94,15 +95,15 @@ class Plotter():
 
         for o in obj_detected:
             pos = o[0]
-            if o[2] == OBSTACLE or o[2] == DRONE:
-                obstacle = patches.Circle((pos[0], pos[1]), 0.1, fill= not o[2] == DRONE, color=d[COLOR])
+            if o[2] == ObstacleType.obstacle or o[2] == ObstacleType.drone:
+                obstacle = patches.Circle((pos[0], pos[1]), 0.1, fill= not o[2] == ObstacleType.drone, color=d[COLOR])
                 if keepMap:
-                    if o[2] == OBSTACLE and pos[2] > 0.8 and pos[2] < 1.2:
+                    if o[2] == ObstacleType.obstacle and pos[2] > 0.8 and pos[2] < 1.2:
                         x = np.round(pos[0], 1)
                         y = np.round(pos[1], 1)
                         if not (x,y) in obs_db:
                             obs_db.append((x, y))
-            else:
+            else:   # Floor
                 obstacle = patches.Rectangle((pos[0], pos[1]), 0.1, 0.1, fill= False, color=d[COLOR])
             plt.gca().add_patch(obstacle)
 

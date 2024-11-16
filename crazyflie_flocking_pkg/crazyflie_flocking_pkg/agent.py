@@ -87,7 +87,7 @@ class Agent:
         self.ros2_logger.info("----------------------")
         self.ros2_logger.info("")
 
-        return v, 0.0
+        return v, 0.0, forces, obstacles
 
     def detect_obstacles(
         self,

@@ -14,6 +14,7 @@ with open(file_path, 'r') as file:
 
 from crazyflie_plotter_pkg.utils import Plotter
 import crazyflie_plotter_pkg.utils.stringer as stringer
+from matplotlib.lines import Line2D
 
 class World():
     def __init__(self, VIEW_2D, PLOT_GRAPHS, config):
@@ -37,7 +38,20 @@ class World():
             plot, self.obs_db = self.plotter.plot_2d(d, yaw, forces, v, des_v, obj_detected, clear = d[config.name] == "cf1", keepMap=True)
 
         if plot is not None:
-            plot.legend()
+            custom_lines = [
+                Line2D([0], [0], color='turquoise', lw=4),
+                Line2D([0], [0], color='red', lw=4),
+                Line2D([0], [0], color='blue', lw=4),
+                Line2D([0], [0], color='black', lw=4),
+            ]
+            handles, labels = plot.gca().get_legend_handles_labels()
+
+            # Aggiungi le entry custom
+            handles.extend(custom_lines)
+            labels.extend(['Inter', 'Obstacle', 'Migration', 'Overall'])
+
+            # Aggiunta della legenda
+            plot.legend(handles, labels, loc='lower left')
 
             plot.rc('grid', linestyle=':', color='black')
 

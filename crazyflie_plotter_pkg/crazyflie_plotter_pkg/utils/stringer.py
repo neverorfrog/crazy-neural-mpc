@@ -113,9 +113,9 @@ def string_objects(list_of_vectors):
         vector, integer, isDrone = item
         
         if not isinstance(vector, np.ndarray) or vector.shape != (3, 1):
-            raise ValueError("Each vector must be a 3x1 numpy array.")
+            raise ValueError(f"Each vector must be a 3x1 numpy array, instead it's {vector.shape}")
         if not isinstance(integer, int):
-            raise ValueError("The second element of each list must be an integer.")
+            raise ValueError(f"The second element of each list must be an integer, instead it's {type(integer)}")
         
         # Convert vector to a string of comma-separated values
         vector_str = ','.join(map(str, vector.flatten()))

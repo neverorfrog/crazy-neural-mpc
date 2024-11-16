@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from crazyflie_swarm_interfaces.msg import CrazyflieState
+from std_msgs.msg import String
 from crazyflie_swarm_pkg.crazyflie.crazyflie_state import CrazyState
 import matplotlib.pyplot as plt
 from crazyflie_plotter_pkg.utils import World
@@ -59,8 +60,14 @@ class PlotNode(Node):
         self.drones = {}
 
         for name in self.swarm:
-            self.subscription = self.create_subscription(
+            self.create_subscription(
                 CrazyflieState, f'/{name}/state', lambda msg, name=name: self.listener_callback(msg, name), 10
+            )
+            self.create_subscription(
+                String, f"/{name}/force", lambda msg, name=name: self.force_listener_callback(msg, name), 10
+            )
+            self.create_subscription(
+                String, f"/{name}/obstacles", lambda msg, name=name: self.obstacle_listener_callback(msg, name), 10
             )
             self.states[name] = CrazyState()
             self.drones[name] = self.states[name].toDrone(name, config)
@@ -74,11 +81,23 @@ class PlotNode(Node):
         self.states[name] = state
         self.update_plot(name)
 
+    def force_listener_callback(self, msg, name):
+        self.drones[name][config.forces] = msg.data
+
+    def obstacle_listener_callback(self, msg, name):
+        self.drones[name][config.obj_detected] = msg.data
+
     def update_plot(self, name):
         #self.get_logger().info(f"Data: {self.states[name][-1]}")
 
+        forces_backup = self.drones[name][config.forces]    # SOTA fix to overwriting
+        obst_backup = self.drones[name][config.obj_detected]    # And again
+
         # Moving to the plotting convention - state -> drone
         self.drones[name] = self.states[name].toDrone(name, config)
+
+        self.drones[name][config.forces] = forces_backup
+        self.drones[name][config.obj_detected] = obst_backup
         
         self.world.plot2d(self.drones) #, title = "t = " + str(np.round(robot.getTime(), 2)) + "s")
 
