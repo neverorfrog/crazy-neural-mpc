@@ -1,0 +1,8 @@
+[submodule "crazyflie_simulation_pkg/external/crazyflie-firmware"]
+	path = crazyflie_simulation_pkg/external/crazyflie-firmware
+	url = https://github.com/llanesc/crazyflie-firmware.git
+	branch = sitl-release
+[submodule "crazyflie_simulation_pkg/external/crazyflie-lib-python"]
+	path = crazyflie_simulation_pkg/external/crazyflie-lib-python
+	url = https://github.com/llanesc/crazyflie-lib-python.git
+	branch = sitl-release
