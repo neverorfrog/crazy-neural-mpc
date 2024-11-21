@@ -98,7 +98,7 @@ class CrazyflieRobot:
         self.open_connection()
 
         # * Led sanity check
-        self.set_led(255.0)
+        # self.set_led(255.0)
 
         self.scf.cf.param.add_update_callback(
             group="deck", name="bcFlow2", cb=self.flow_deck_attached_callback
@@ -140,7 +140,7 @@ class CrazyflieRobot:
         log(f"Crazyflie {self.name} initialized", self.logger)
 
         # * Led sanity check
-        self.set_led(0.0)
+        # self.set_led(0.0)
 
         return True
 

@@ -5,6 +5,9 @@ from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import Odometry
 from rclpy.node import Node, Publisher, Subscription
 from sensor_msgs.msg import LaserScan
+from geometry_msgs.msg import TransformStamped
+import tf_transformations as tft
+from tf2_ros import TransformBroadcaster
 from std_msgs.msg import Float32
 from std_srvs.srv import Empty
 
@@ -34,6 +37,8 @@ class CrazyflieSimulation(Node):
 
         self.max_ang_z_rate = self.config.max_ang_z_rate
         self.takeoff_height = self.config.height
+        
+        self.tf_broadcaster = TransformBroadcaster(self)
 
         # * CrazyflieSwarm
         self.swarm = []
@@ -57,17 +62,20 @@ class CrazyflieSimulation(Node):
             )
 
         state_publisher_rate = self.config.state_publisher_rate
+        self.pose_publishers: Dict[str, Publisher] = {}
         for name in self.swarm:
             publisher = self.create_publisher(
                 CrazyflieState, f"/{name}/state", 10
             )
+            self.pose_publishers[name] = self.create_publisher(PoseStamped, f"/{name}/pose", 10)
+            
             self.create_timer(
                 1 / state_publisher_rate,
                 lambda name=name, publisher=publisher: self.state_callback(
                     name, publisher
                 ),
             )
-
+            
         # * Subscriptions
         self.velocity_subscribers: Dict[str, Subscription] = {}
         for crazyflie_config in self.config.crazyflies:
@@ -166,6 +174,33 @@ class CrazyflieSimulation(Node):
         state_msg.multiranger[2] = state.mr_back
         state_msg.multiranger[3] = state.mr_left
         state_msg.multiranger[4] = state.mr_up
+        
+        pose = PoseStamped()
+        pose.header.stamp = self.get_clock().now().to_msg()
+        pose.header.frame_id = "world"
+        pose.pose.position.x = state.x
+        pose.pose.position.y = state.y
+        pose.pose.position.z = state.z
+        q = tft.quaternion_from_euler(state.roll, state.pitch, state.yaw)
+        pose.pose.orientation.x = q[0]
+        pose.pose.orientation.y = q[1]
+        pose.pose.orientation.z = q[2]
+        pose.pose.orientation.w = q[3]
+        self.pose_publishers[name].publish(pose)
+        
+        transform = TransformStamped()
+        transform.header.stamp = self.get_clock().now().to_msg()
+        transform.header.frame_id = "world"
+        transform.child_frame_id = name
+        transform.transform.translation.x = state.x
+        transform.transform.translation.y = state.y
+        transform.transform.translation.z = state.z
+        q = tft.quaternion_from_euler(state.roll, state.pitch, state.yaw)
+        transform.transform.rotation.x = q[0]
+        transform.transform.rotation.y = q[1]
+        transform.transform.rotation.z = q[2]
+        transform.transform.rotation.w = q[3]
+        self.tf_broadcaster.sendTransform(transform)
 
         publisher.publish(state_msg)
 

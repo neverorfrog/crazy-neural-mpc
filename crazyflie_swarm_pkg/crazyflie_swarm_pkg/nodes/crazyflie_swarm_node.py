@@ -5,6 +5,9 @@ import cflib.crtp as crtp
 import rclpy
 from geometry_msgs.msg import Twist
 from std_srvs.srv import Empty
+from geometry_msgs.msg import TransformStamped
+import tf_transformations as tft
+from tf2_ros import TransformBroadcaster
 from rclpy.node import Node, Publisher, Subscription
 from std_msgs.msg import Float32
 
@@ -31,6 +34,10 @@ class CrazyflieSwarmNode(Node):
         self.get_logger().info("CrazyflieSwarmNode started with parameters:")
         for cf_config in self.config.crazyflies:
             self.get_logger().info(f"  - {cf_config.name}: {cf_config.uri}")
+            
+            
+        # * TF Broadcaster
+        self.tf_broadcaster = TransformBroadcaster(self)
 
         # * CrazyflieSwarm
         crtp.init_drivers()
@@ -164,6 +171,23 @@ class CrazyflieSwarmNode(Node):
             state_msg.initial_position[2] = state.init_z
 
             publisher.publish(state_msg)
+            
+            transform = TransformStamped()
+            
+            transform.header.stamp = self.get_clock().now().to_msg()
+            transform.header.frame_id = "world"
+            transform.child_frame_id = name
+            transform.transform.translation.x = state.x
+            transform.transform.translation.y = state.y
+            transform.transform.translation.z = state.z
+            
+            q = tft.quaternion_from_euler(state.roll, state.pitch, state.yaw)
+            transform.transform.rotation.x = q[0]
+            transform.transform.rotation.y = q[1]
+            transform.transform.rotation.z = q[2]
+            transform.transform.rotation.w = q[3]
+            
+            self.tf_broadcaster.sendTransform(transform)
 
         except Exception as e:
             self.get_logger().error(f"Error in state_callback: {e}")

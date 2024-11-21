@@ -5,7 +5,7 @@ simulation: True
 crazyflies:
   - name: cf1
     active: True
-    uri: radio://0/80/2M/E7E7E7E7E6
+    uri: udp://0.0.0.0:19850
     sim_uri: udp://0.0.0.0:19850
     takeoff_height: 0.2
     takeoff_duration: 3
