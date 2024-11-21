@@ -39,7 +39,10 @@ class CrazyflieSwarmNode(Node):
         for crazyflie_config in self.config.crazyflies:
             if crazyflie_config.active is False:
                 continue
-            uri = crazyflie_config.uri
+            if self.config.simulation:
+                uri = crazyflie_config.sim_uri
+            else:
+                uri = crazyflie_config.uri
             name = crazyflie_config.name
             multiranger = crazyflie_config.multiranger
             initial_position = crazyflie_config.initial_position
