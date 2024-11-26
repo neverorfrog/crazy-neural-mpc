@@ -15,8 +15,10 @@ class Position:
 class CrazyflieConfig:
     active: bool = False
     name: str = MISSING
+    sim_uri: str = MISSING
     uri: str = MISSING
-    height: float = MISSING
+    takeoff_height: float = MISSING
+    takeoff_duration: float = MISSING
     multiranger: bool = False
     initial_position: Position = MISSING
 
@@ -27,6 +29,7 @@ class SwarmConfig:
     state_publisher_rate: float = field(default=10.0)
     led_publisher_rate: float = field(default=1.0)
     velocity_publisher_rate: float = field(default=1.0)
+    simulation: bool = field(default=True)
     crazyflies: List[CrazyflieConfig] = field(
         default_factory=list[CrazyflieConfig]
     )

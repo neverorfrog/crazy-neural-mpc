@@ -42,8 +42,6 @@ class CrazyState:
             f"Position: ({self.x:.2f}, {self.y:.2f}, {self.z:.2f})\n"
             + f"Inital Position: ({self.init_x:.2f}, {self.init_y:.2f}, {self.init_z:.2f})\n"
             + f"Euler Orientation: ({self.roll:.2f}, {self.pitch:.2f}, {self.yaw:.2f})\n"
-            + f"Linear Velocity: ({self.vx:.2f}, {self.vy:.2f}, {self.vz:.2f})\n"
-            + f"Angular Velocity: ({self.roll_rate:.2f}, {self.pitch_rate:.2f}, {self.yaw_rate:.2f})\n"
             + f"Multiranger Data: ({self.mr_front:.2f}, {self.mr_right:.2f}, {self.mr_back:.2f}, {self.mr_left:.2f}, {self.mr_up:.2f})"
         )
 
@@ -54,27 +52,31 @@ class CrazyState:
         return np.array([self.init_x, self.init_y, self.init_z])
 
     def get_rotation_matrix(self) -> np.ndarray:
+        roll = np.deg2rad(self.roll)
+        pitch = np.deg2rad(self.pitch)
+        yaw = np.deg2rad(self.yaw)
+        
         R_roll = np.array(
             [
                 [1, 0, 0],
-                [0, np.cos(self.roll), -np.sin(self.roll)],
-                [0, np.sin(self.roll), np.cos(self.roll)],
+                [0, np.cos(roll), -np.sin(roll)],
+                [0, np.sin(roll), np.cos(roll)],
             ]
         )
 
         R_pitch = np.array(
             [
-                [np.cos(self.pitch), 0, np.sin(self.pitch)],
+                [np.cos(pitch), 0, np.sin(pitch)],
                 [0, 1, 0],
-                [-np.sin(self.pitch), 0, np.cos(self.pitch)],
+                [-np.sin(pitch), 0, np.cos(pitch)],
             ]
         )
 
         # Matrice di rotazione per yaw
         R_yaw = np.array(
             [
-                [np.cos(self.yaw), -np.sin(self.yaw), 0],
-                [np.sin(self.yaw), np.cos(self.yaw), 0],
+                [np.cos(yaw), -np.sin(yaw), 0],
+                [np.sin(yaw), np.cos(yaw), 0],
                 [0, 0, 1],
             ]
         )

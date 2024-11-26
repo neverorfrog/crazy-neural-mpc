@@ -88,10 +88,7 @@ class CrazyflieFlockingNode(Node):  # type: ignore
         velocities computed by the flocking algorithm and sends them to the dock
         node.
         """
-        target = [1, 0, self.swarm_config.crazyflies[0].height]
-        v, yaw_rate = self.agents[name].compute_velocities(
-            self.swarm_state, target
-        )
+        v, yaw_rate = self.agents[name].compute_velocities(self.swarm_state, is_omnidirectional=False)
         cmd_vel = Twist()
         cmd_vel.linear.x = v[0]
         cmd_vel.linear.y = v[1]

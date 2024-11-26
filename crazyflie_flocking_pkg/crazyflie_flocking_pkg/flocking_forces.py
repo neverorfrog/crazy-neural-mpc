@@ -47,8 +47,8 @@ class ForcesGenerator:
             #  this means that all the other will pull the drone towards other drones, making the configuration "squeeze"
             
             # TODO: serve con piú di 3 robot
-            if neighbor_distance > 2 * self.config.dimensions.d_eq:
-                continue
+            # if neighbor_distance > 2 * self.config.dimensions.d_eq:
+            #     continue
 
             # Direction of vector between me and nth neighbor
             u_ij = get_versor(n_pos - self_pos).reshape((3, 1))
@@ -66,7 +66,7 @@ class ForcesGenerator:
             obstacle_distance = np.linalg.norm(o.rel_pos) - self.config.dimensions.radius
 
             # Versor to obstacle computation 
-            self_yaw = state.yaw
+            self_yaw = np.deg2rad(state.yaw)
             R = np.array(
                 [
                     [np.cos(self_yaw), -np.sin(self_yaw), 0],
@@ -91,16 +91,11 @@ class ForcesGenerator:
             contr = (
                 - (1 / (obstacle_distance) ** 2) * u_ik
             )  # f_obs originale
-            # contr = - (1/(obstacle_distance)**2 - 1/(d_0)**2)* u_ik  # f_obs continua
-            # contr = - (1/(obstacle_distance) - 1/(d_0))**2 * u_ik     # f_obs APF
-
-            # d_0 = (
-            #     self.config.dimensions.max_vis_objs - self.config.dimensions.radius
-            # )
-            # contr = (
-            #     1 / 3 * (obstacle_distance - d_0) / obstacle_distance**0.5
-            # )  # f_obs Luca
             
+            # d_0 = self.config.dimensions.max_vis_objs - self.config.dimensions.radius
+            # contr = - (1/(obstacle_distance)**2 - 1/(d_0)**2)* u_ik  # f_obs continua
+            # contr = - (1/(obstacle_distance) - 1/(d_0))**2 * u_ik    # f_obs APF
+
             f_obstacle += self.config.gains.k_o * contr
 
         f_obstacle[2] = 0
