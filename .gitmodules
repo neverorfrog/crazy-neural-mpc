@@ -6,3 +6,6 @@
 	path = crazyflie_simulation_pkg/external/crazyflie-lib-python
 	url = https://github.com/llanesc/crazyflie-lib-python.git
 	branch = sitl-release
+[submodule "crazyflie_mpc_pkg/external/acados"]
+	path = crazyflie_mpc_pkg/external/acados
+	url = https://github.com/acados/acados.git
