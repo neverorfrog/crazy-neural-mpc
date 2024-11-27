@@ -4,8 +4,8 @@ import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node, Publisher
 
-from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
 from crazyflie_swarm_interfaces.msg import CrazyflieState
+from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
 
 
 class CrazyflieTeleopNode(Node):
@@ -50,7 +50,7 @@ class CrazyflieTeleopNode(Node):
                     name, publisher
                 ),
             )
-        
+
         # * Hardcoded publisher for one "simulated" cf
         # self.cf_publisher : Publisher = self.create_publisher(CrazyflieState, f"/cf3/state", 10)
         # self.create_timer(0.1, self.cf_callback)
@@ -60,7 +60,7 @@ class CrazyflieTeleopNode(Node):
             Twist, "/cmd_vel", self.cmd_vel_callback, 10
         )
         self.current_cmd_vel = Twist()
-        
+
     def cmd_vel_callback(self, msg: Twist) -> None:
         self.current_cmd_vel = msg
 
@@ -73,7 +73,7 @@ class CrazyflieTeleopNode(Node):
         velocity_msg.angular.y = 0.0
         velocity_msg.angular.z = self.current_cmd_vel.angular.z
         publisher.publish(velocity_msg)
-        
+
     def cf_callback(self) -> None:
         msg: CrazyflieState = CrazyflieState()
         msg.position[0] = 0.2

@@ -23,8 +23,15 @@ class CircularTrajectory(Trajectory):  # type: ignore
         """
 
         Trajectory.__init__(self)
-        assert plane in ["XY", "XZ", "YZ"], "Invalid Plane. Choose from XY, XZ, YZ"
-        assert direction in ["CW", "CCW"], "Invalid Direction. Choose from CW, CCW"
+        assert plane in [
+            "XY",
+            "XZ",
+            "YZ",
+        ], "Invalid Plane. Choose from XY, XZ, YZ"
+        assert direction in [
+            "CW",
+            "CCW",
+        ], "Invalid Direction. Choose from CW, CCW"
 
         self.__center = np.array(center)
         self.__radius = radius

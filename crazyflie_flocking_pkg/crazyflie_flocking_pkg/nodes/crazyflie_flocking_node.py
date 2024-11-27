@@ -56,7 +56,6 @@ class CrazyflieFlockingNode(Node):  # type: ignore
             agent = Agent(name, self.flocking_config, self.get_logger())
             self.agents[name] = agent
             self.swarm_state[name] = CrazyState()
-            
 
         # * Publishers
         self.cmd_vel_publishers: Dict[str, Publisher] = {}
@@ -88,7 +87,9 @@ class CrazyflieFlockingNode(Node):  # type: ignore
         velocities computed by the flocking algorithm and sends them to the dock
         node.
         """
-        v, yaw_rate = self.agents[name].compute_velocities(self.swarm_state, is_omnidirectional=False)
+        v, yaw_rate = self.agents[name].compute_velocities(
+            self.swarm_state, is_omnidirectional=False
+        )
         cmd_vel = Twist()
         cmd_vel.linear.x = v[0]
         cmd_vel.linear.y = v[1]
@@ -125,7 +126,7 @@ class CrazyflieFlockingNode(Node):  # type: ignore
         state.mr_back = msg.multiranger[2]
         state.mr_left = msg.multiranger[3]
         state.mr_up = msg.multiranger[4]
-        
+
         state.init_x = msg.initial_position[0]
         state.init_y = msg.initial_position[1]
         state.init_z = msg.initial_position[2]

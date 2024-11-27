@@ -16,10 +16,9 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition
+from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
 
 
@@ -30,23 +29,6 @@ def generate_launch_description():
     root = get_package_share_directory("crazyflie_simulation_pkg")
     pkg_ros_gz_sim = get_package_share_directory("ros_gz_sim")
     gz_model_path = os.getenv("GZ_SIM_RESOURCE_PATH")
-
-    # Load the SDF file from "description" package
-    sdf_file = os.path.join(gz_model_path, "crazyflie_1", "model.sdf")
-    with open(sdf_file, "r") as infp:
-        robot_desc = infp.read()
-
-    sdf_file = os.path.join(gz_model_path, "crazyflie_2", "model.sdf")
-    with open(sdf_file, "r") as infp:
-        robot_desc = infp.read()
-
-    sdf_file = os.path.join(gz_model_path, "crazyflie_3", "model.sdf")
-    with open(sdf_file, "r") as infp:
-        robot_desc = infp.read()
-
-    sdf_file = os.path.join(gz_model_path, "crazyflie_4", "model.sdf")
-    with open(sdf_file, "r") as infp:
-        robot_desc = infp.read()
 
     # Setup to launch the simulator and Gazebo world
     gz_sim = IncludeLaunchDescription(

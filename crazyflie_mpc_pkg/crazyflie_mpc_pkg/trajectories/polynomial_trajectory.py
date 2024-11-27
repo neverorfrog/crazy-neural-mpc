@@ -56,7 +56,9 @@ class PolynomialTrajectory(Trajectory):  # type: ignore
 
     def __preprocess_trajectory(
         self,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[
+        np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+    ]:
         """
         Returns:
         - points: (N, 3) array of N waypoint coordinates in 3D after
@@ -71,7 +73,9 @@ class PolynomialTrajectory(Trajectory):  # type: ignore
 
         # * Remove any sequential duplicate points (or points that are too close);
         # always keep the first instance
-        segment_lengths = np.linalg.norm(np.diff(self.__points, axis=0), axis=1)
+        segment_lengths = np.linalg.norm(
+            np.diff(self.__points, axis=0), axis=1
+        )
         segment_mask = np.append(True, segment_lengths > 1e-3)
         points = self.__points[segment_mask]
 
@@ -102,8 +106,12 @@ class PolynomialTrajectory(Trajectory):  # type: ignore
         x_ddot_polynomials = np.zeros((num_of_points, 3, 4))
         for i in range(num_of_points):
             for j in range(3):
-                x_dot_polynomials[i, j, :] = np.polyder(x_polynomials[i, j, :], m=1)
-                x_ddot_polynomials[i, j, :] = np.polyder(x_polynomials[i, j, :], m=2)
+                x_dot_polynomials[i, j, :] = np.polyder(
+                    x_polynomials[i, j, :], m=1
+                )
+                x_ddot_polynomials[i, j, :] = np.polyder(
+                    x_polynomials[i, j, :], m=2
+                )
 
         return (
             points,

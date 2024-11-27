@@ -55,7 +55,7 @@ class CrazyState:
         roll = np.deg2rad(self.roll)
         pitch = np.deg2rad(self.pitch)
         yaw = np.deg2rad(self.yaw)
-        
+
         R_roll = np.array(
             [
                 [1, 0, 0],

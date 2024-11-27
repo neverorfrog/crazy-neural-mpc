@@ -23,7 +23,7 @@ class CrazyflieRobot:
         multiranger=False,
         initial_position=None,
         default_take_off_height=0.2,
-        default_take_off_duration=3
+        default_take_off_duration=3,
     ):
         self.uri = uri
         self.name = name
@@ -36,7 +36,7 @@ class CrazyflieRobot:
         self.default_land_duration = 3
         self.default_height = 0.2
         self.default_velocity = 0.1
-        self.emergency_stop_distance = 0.3 # TODO: put in config
+        self.emergency_stop_distance = 0.3  # TODO: put in config
 
         # State
         self.initial_position = initial_position
@@ -44,9 +44,9 @@ class CrazyflieRobot:
         self.state.init_x = initial_position.x
         self.state.init_y = initial_position.y
         self.state.init_z = initial_position.z
-        
+
         log(f"{self.state}", self.logger)
-        
+
         self.estimators: Dict[str, LogConfig] = {}
 
         # Connection
@@ -279,7 +279,7 @@ class CrazyflieRobot:
 
     def emergency_stop(self):
         self.cf.commander.send_stop_setpoint()
-        
+
     def sanity_check(self) -> None:
         if not self.__connection_opened:
             raise Exception("Connection not opened")
@@ -296,25 +296,20 @@ class CrazyflieRobot:
         self.cf.commander.send_hover_setpoint(
             vx, vy, yaw_rate, self.default_take_off_height
         )
-        
+
     def set_attitude(self, roll, pitch, yaw_rate, thrust):
         self.sanity_check()
         if not self.is_flying:
             log(f"Not flying {self.name}", self.logger)
             return
-        self.cf.commander.send_setpoint(
-            roll, pitch, yaw_rate, thrust
-        )
-        
+        self.cf.commander.send_setpoint(roll, pitch, yaw_rate, thrust)
+
     def set_position(self, x, y, z, yaw):
         self.sanity_check()
         if not self.is_flying:
             log(f"Not flying {self.name}", self.logger)
             return
-        self.cf.commander.send_position_setpoint(
-            x, y, z, yaw
-        )
-
+        self.cf.commander.send_position_setpoint(x, y, z, yaw)
 
     # * Setters
     def set_led(self, intensity):
