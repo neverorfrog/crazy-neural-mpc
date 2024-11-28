@@ -4,7 +4,7 @@ from typing import Dict
 import cflib.crtp as crtp
 import rclpy
 import tf_transformations as tft
-from geometry_msgs.msg import TransformStamped, Twist
+from geometry_msgs.msg import PoseStamped, TransformStamped, Twist
 from rclpy.node import Node, Publisher, Subscription
 from std_msgs.msg import Float32
 from tf2_ros import TransformBroadcaster
@@ -20,33 +20,22 @@ class CrazyflieSwarmNode(Node):
         super().__init__("crazyflie_swarm_node")
         self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
-        self.declare_parameter("swarm_config_path", "")
-        swarm_config_path = (
-            self.get_parameter("swarm_config_path")
-            .get_parameter_value()
-            .string_value
-        )
-        config = load_config(swarm_config_path, SwarmConfig)
-        self.config = config
-
-        self.get_logger().info("CrazyflieSwarmNode started with parameters:")
-        for cf_config in self.config.crazyflies:
-            self.get_logger().info(f"  - {cf_config.name}: {cf_config.uri}")
-
-        # * TF Broadcaster
-        self.tf_broadcaster = TransformBroadcaster(self)
+        self.config = self._get_config()
 
         # * CrazyflieSwarm
         crtp.init_drivers()
-
+        self.fully_connected_crazyflie_cnt = 0
         self.swarm: Dict[str, CrazyflieRobot] = {}
+        is_simulated = self.config.simulation
+
         for crazyflie_config in self.config.crazyflies:
             if crazyflie_config.active is False:
                 continue
-            if self.config.simulation:
+            if is_simulated:
                 uri = crazyflie_config.sim_uri
             else:
                 uri = crazyflie_config.uri
+
             name = crazyflie_config.name
             multiranger = crazyflie_config.multiranger
             initial_position = crazyflie_config.initial_position
@@ -62,10 +51,11 @@ class CrazyflieSwarmNode(Node):
                 initial_position=initial_position,
                 default_take_off_height=height,
                 default_take_off_duration=duration,
+                is_simulated=self.config.simulation,
             )
+            self.swarm[name] = crazyflie_robot
             while not crazyflie_robot.initialize():
                 time.sleep(0.5)
-            self.swarm[name] = crazyflie_robot
 
         # * Subscriptions
         self.led_subscribers: Dict[str, Subscription] = {}
@@ -87,11 +77,20 @@ class CrazyflieSwarmNode(Node):
             )
 
         # * Publishers
+
+        # * TF Broadcaster
+        self.tf_broadcaster = TransformBroadcaster(self)
+
+        # * State Publisher
         self.state_publishers: Dict[str, Publisher] = {}
+        self.pose_publishers: Dict[str, Publisher] = {}
         state_publisher_rate = self.config.state_publisher_rate
         for name, _ in self.swarm.items():
             publisher = self.create_publisher(
                 CrazyflieState, f"/{name}/state", 10
+            )
+            self.pose_publishers[name] = self.create_publisher(
+                PoseStamped, f"/{name}/pose", 10
             )
             self.state_publishers[name] = publisher
             self.create_timer(
@@ -113,6 +112,20 @@ class CrazyflieSwarmNode(Node):
         for name, _ in self.swarm.items():
             self.create_timer(0.1, lambda name=name: self.update_robot(name))
 
+    def _get_config(self) -> SwarmConfig:
+        self.declare_parameter("swarm_config_path", "")
+        swarm_config_path = (
+            self.get_parameter("swarm_config_path")
+            .get_parameter_value()
+            .string_value
+        )
+        config = load_config(swarm_config_path, SwarmConfig)
+
+        self.get_logger().info("CrazyflieSwarmNode started with parameters:")
+        for cf_config in config.crazyflies:
+            self.get_logger().info(f"  - {cf_config.name}: {cf_config.uri}")
+        return config
+
     # *Timers Callbacks
     def update_robot(self, name) -> None:
         self.swarm[name].update()
@@ -130,6 +143,10 @@ class CrazyflieSwarmNode(Node):
         velocity_y = msg.linear.y
         yaw_rate = msg.angular.z
 
+        self.get_logger().info(
+            f"Velocity command for {name}: {velocity_x}, {velocity_y}, {yaw_rate}"
+        )
+
         try:
             self.swarm[name].set_velocity(velocity_x, velocity_y, yaw_rate)
             pass
@@ -137,7 +154,7 @@ class CrazyflieSwarmNode(Node):
             self.get_logger().error(f"Error in velocity_callback: {e}")
 
     # * Publishers Callbacks
-    def state_callback(self, name, publisher) -> None:
+    def state_callback(self, name: str, publisher: Publisher) -> None:
         try:
             state = self.swarm[name].get_state()
 
@@ -169,21 +186,31 @@ class CrazyflieSwarmNode(Node):
 
             publisher.publish(state_msg)
 
-            transform = TransformStamped()
+            pose = PoseStamped()
+            pose.header.stamp = self.get_clock().now().to_msg()
+            pose.header.frame_id = "world"
+            pose.pose.position.x = state.x
+            pose.pose.position.y = state.y
+            pose.pose.position.z = state.z
+            q = tft.quaternion_from_euler(state.roll, state.pitch, state.yaw)
+            pose.pose.orientation.x = q[0]
+            pose.pose.orientation.y = q[1]
+            pose.pose.orientation.z = q[2]
+            pose.pose.orientation.w = q[3]
+            self.pose_publishers[name].publish(pose)
 
+            transform = TransformStamped()
             transform.header.stamp = self.get_clock().now().to_msg()
             transform.header.frame_id = "world"
             transform.child_frame_id = name
             transform.transform.translation.x = state.x
             transform.transform.translation.y = state.y
             transform.transform.translation.z = state.z
-
             q = tft.quaternion_from_euler(state.roll, state.pitch, state.yaw)
             transform.transform.rotation.x = q[0]
             transform.transform.rotation.y = q[1]
             transform.transform.rotation.z = q[2]
             transform.transform.rotation.w = q[3]
-
             self.tf_broadcaster.sendTransform(transform)
 
         except Exception as e:

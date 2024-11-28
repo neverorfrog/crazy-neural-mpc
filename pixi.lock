@@ -574,6 +574,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tango-icons-vendor-0.1.1-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-teleop-twist-joy-2.4.5-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-teleop-twist-keyboard-2.3.2-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tf-transformations-1.0.1-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tf2-0.25.5-py311hb303436_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tf2-bullet-0.25.5-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tf2-eigen-0.25.5-py311hb335429_6.tar.bz2
@@ -14607,6 +14608,31 @@ packages:
   license: BSD-3-Clause
   size: 15265
   timestamp: 1707315153458
+- kind: conda
+  name: ros-humble-tf-transformations
+  version: 1.0.1
+  build: py311hb335429_6
+  build_number: 6
+  subdir: linux-64
+  url: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tf-transformations-1.0.1-py311hb335429_6.tar.bz2
+  sha256: 8f6288577981c348cf1e18c0163f544deb0446617d53cd8f9e2dec0b3e95d3c0
+  md5: 91e8dc38cbfb0a722534e9da805b9f5e
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  arch: x86_64
+  platform: linux
+  license: BSD-3-Clause
+  size: 37608
+  timestamp: 1707308778223
 - kind: conda
   name: ros-humble-tf2
   version: 0.25.5

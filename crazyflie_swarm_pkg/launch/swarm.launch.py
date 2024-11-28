@@ -19,6 +19,22 @@ def generate_launch_description():
         ],
     )
 
+    rviz = Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        arguments=[
+            "-d"
+            + os.path.join(
+                get_package_share_directory("crazyflie_swarm_pkg"),
+                "config",
+                "config.rviz",
+            )
+        ],
+        output="screen",
+    )
+
     ld.add_action(swarm)
+    ld.add_action(rviz)
 
     return ld

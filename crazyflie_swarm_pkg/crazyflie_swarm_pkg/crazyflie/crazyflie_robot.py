@@ -24,12 +24,14 @@ class CrazyflieRobot:
         initial_position=None,
         default_take_off_height=0.2,
         default_take_off_duration=3,
+        is_simulated=True,
     ):
         self.uri = uri
         self.name = name
         self.cf = Crazyflie(ro_cache=ro_cache, rw_cache=rw_cache)
         self.scf = SyncCrazyflie(self.uri, cf=self.cf)
         self.logger = logger
+        self.is_simulated = is_simulated
 
         self.default_take_off_height = default_take_off_height
         self.default_take_off_duration = default_take_off_duration
@@ -98,37 +100,45 @@ class CrazyflieRobot:
         self.open_connection()
 
         # * Led sanity check
-        # self.set_led(255.0)
+        if not self.is_simulated:
+            self.set_led(255.0)
 
-        self.scf.cf.param.add_update_callback(
-            group="deck", name="bcFlow2", cb=self.flow_deck_attached_callback
-        )
-        if self.multiranger:
             self.scf.cf.param.add_update_callback(
                 group="deck",
-                name="bcMultiranger",
-                cb=self.multiranger_deck_attached_callback,
+                name="bcFlow2",
+                cb=self.flow_deck_attached_callback,
             )
+            if self.multiranger:
+                self.scf.cf.param.add_update_callback(
+                    group="deck",
+                    name="bcMultiranger",
+                    cb=self.multiranger_deck_attached_callback,
+                )
 
-        while (
-            not self.__connection_opened
-            or not self.__flow_deck_attached
-            or (not self.__multiranger_attached and self.multiranger)
-        ):
-            if time.time() - start_initialization > self.__connection_timeout:
-                log(f"Initialization timeout for {self.name}", self.logger)
-                self.close_connection()
-                return False
-            time.sleep(0.1)
+            while (
+                not self.__connection_opened
+                or not self.__flow_deck_attached
+                or (not self.__multiranger_attached and self.multiranger)
+            ):
+                if (
+                    time.time() - start_initialization
+                    > self.__connection_timeout
+                ):
+                    log(f"Initialization timeout for {self.name}", self.logger)
+                    self.close_connection()
+                    return False
+                time.sleep(0.1)
 
-        log(f"Crazyflie {self.name} connected.", self.logger)
+            log(f"Crazyflie {self.name} connected.", self.logger)
 
-        log(
-            f"Resetting estimators of Crazyflie {self.name} ...",
-            self.logger,
-        )
-        self.reset_estimator()
-        log(f"Estimators of Crazyflie {self.name} reset.", self.logger)
+            log(
+                f"Resetting estimators of Crazyflie {self.name} ...",
+                self.logger,
+            )
+            self.reset_estimator()
+            log(f"Estimators of Crazyflie {self.name} reset.", self.logger)
+
+            self.set_led(0.0)
 
         log(
             f"Starting estimators of Crazyflie {self.name} ...",
@@ -139,9 +149,6 @@ class CrazyflieRobot:
 
         log(f"Crazyflie {self.name} initialized", self.logger)
 
-        # * Led sanity check
-        # self.set_led(0.0)
-
         return True
 
     def destroy(self):
@@ -150,13 +157,14 @@ class CrazyflieRobot:
             estimator.stop()
 
         # Destroy multiranger
-        self.multiranger_sensor.stop()
-        self.multiranger_attached_event.clear()
-        self.__multiranger_attached = False
+        if not self.is_simulated:
+            self.multiranger_sensor.stop()
+            self.multiranger_attached_event.clear()
+            self.__multiranger_attached = False
 
-        # Destroy flow deck
-        self.flow_deck_attached_event.clear()
-        self.__flow_deck_attached = False
+            # Destroy flow deck
+            self.flow_deck_attached_event.clear()
+            self.__flow_deck_attached = False
 
         # Close connection
         self.close_connection()
@@ -185,6 +193,7 @@ class CrazyflieRobot:
         if self.__connection_opened:
             raise Exception("Connection already opened")
         try:
+            log(f"Opening connection to {self.scf._link_uri} ...", self.logger)
             self.scf.open_link()
             self.__connection_opened = True
         except Exception as e:
@@ -260,56 +269,46 @@ class CrazyflieRobot:
 
     # * Commands
     def take_off(self, absolute_height=None, duration=None):
-        self.sanity_check()
+        if not self.__connection_opened:
+            raise Exception("Connection not opened")
+        if not self.is_simulated:
+            if not self.__flow_deck_attached:
+                raise Exception("Flow deck not attached")
+            if self.multiranger and not self.__multiranger_attached:
+                raise Exception("Multiranger not attached")
+
         if absolute_height is None:
             absolute_height = self.default_take_off_height
         if duration is None:
             duration = self.default_take_off_duration
-        self.cf.commander.send_hover_setpoint(0, 0, 0, absolute_height)
+        self.logger.info(
+            f"Taking off {self.name} to {absolute_height} m in {duration} s"
+        )
+        self.cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, 1.0)
 
     def land(self, duration=None):
-        self.sanity_check()
-        if not self.is_flying:
-            log(f"Not flying {self.name}", self.logger)
-            return
+        self.is_flying = False
         if duration is None:
             duration = self.default_land_duration
         self.cf.commander.send_velocity_world_setpoint(0, 0, -0.05, 0)
-        self.is_flying = False
 
     def emergency_stop(self):
         self.cf.commander.send_stop_setpoint()
 
-    def sanity_check(self) -> None:
-        if not self.__connection_opened:
-            raise Exception("Connection not opened")
-        if not self.__flow_deck_attached:
-            raise Exception("Flow deck not attached")
-        if self.multiranger and not self.__multiranger_attached:
-            raise Exception("Multiranger not attached")
-
     def set_velocity(self, vx, vy, yaw_rate):
-        self.sanity_check()
+        if not self.is_simulated:
+            if not self.__connection_opened:
+                raise Exception("Connection not opened")
+            if not self.__flow_deck_attached:
+                raise Exception("Flow deck not attached")
+            if self.multiranger and not self.__multiranger_attached:
+                raise Exception("Multiranger not attached")
         if not self.is_flying:
             log(f"Not flying {self.name}", self.logger)
             return
         self.cf.commander.send_hover_setpoint(
             vx, vy, yaw_rate, self.default_take_off_height
         )
-
-    def set_attitude(self, roll, pitch, yaw_rate, thrust):
-        self.sanity_check()
-        if not self.is_flying:
-            log(f"Not flying {self.name}", self.logger)
-            return
-        self.cf.commander.send_setpoint(roll, pitch, yaw_rate, thrust)
-
-    def set_position(self, x, y, z, yaw):
-        self.sanity_check()
-        if not self.is_flying:
-            log(f"Not flying {self.name}", self.logger)
-            return
-        self.cf.commander.send_position_setpoint(x, y, z, yaw)
 
     # * Setters
     def set_led(self, intensity):

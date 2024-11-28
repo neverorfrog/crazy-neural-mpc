@@ -12,6 +12,8 @@ class RingBuffer:
     def append(self, elem) -> None:
         if type(elem) is float:
             return
+        if elem is None:
+            return
         if np.isnan(elem):
             return
         self.data[self.index] = elem

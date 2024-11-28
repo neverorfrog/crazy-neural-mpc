@@ -7,15 +7,22 @@ platforms = ["linux-64"]
 version = "0.1.0"
 
 [tasks]
+
+# build stuff
 build-acados = "cd crazyflie_mpc_pkg/external/acados && mkdir -p build && cd build && cmake -DACADOS_WITH_QPOASES=ON -DACADOS_WITH_OSQP=ON .. && make -j8"
+build-firmware = "cd crazyflie_simulation_pkg/external/crazyflie-firmware && mkdir -p sitl_make/build && cd $_ && cmake .. && make all"
 build = "colcon build --symlink-install"
 clean = "rm -rf install log build"
+
+# commands to run stuff
 flocking = "ros2 launch crazyflie_flocking_pkg flocking.launch.py"
-sim = "cd crazyflie_simulation_pkg/external/crazyflie-firmware && bash tools/crazyflie-simulation/simulator_files/gazebo/launch/sitl_multiagent_square.sh -n 4 -m crazyflie"
+simmulti = "cd crazyflie_simulation_pkg/external/crazyflie-firmware && bash tools/crazyflie-simulation/simulator_files/gazebo/launch/sitl_multiagent_square.sh -n 4 -m crazyflie"
+sim = "cd crazyflie_simulation_pkg/external/crazyflie-firmware && bash tools/crazyflie-simulation/simulator_files/gazebo/launch/sitl_singleagent.sh -m crazyflie -x 0 -y 0"
 swarm = "ros2 launch crazyflie_swarm_pkg swarm.launch.py"
 mpc = "ros2 launch crazyflie_mpc_pkg mpc.launch.py"
 takeoff = 'ros2 service call /take_off crazyflie_swarm_interfaces/srv/TakeOff "{height: 0.3, duration: 2}"'
 land = 'ros2 service call /land crazyflie_swarm_interfaces/srv/Land "{duration: 3}"'
+teleop = 'ros2 launch crazyflie_swarm_pkg teleop.launch.py'
 
 [pypi-dependencies]
 cflib = {path = "crazyflie_simulation_pkg/external/crazyflie-lib-python", editable = true}
@@ -29,13 +36,14 @@ torch = "*"
 pyyaml = ">=6.0.2,<7"
 
 [dependencies]
-python = "==3.11"
+python = "3.11.*"
 numpy = "==1.24"
 colcon-common-extensions = ">=0.3.0,<0.4"
 setuptools = ">=75.6.0,<76"
 ros-humble-desktop = "==0.10.0"
 ros-humble-tf2 = ">=0.25.5,<0.26"
 ros-humble-ros-gz-bridge = ">=0.244.9"
+ros-humble-tf-transformations = ">=1.0.1,<2"
 
 [activation]
 scripts = ["install/setup.sh"]
