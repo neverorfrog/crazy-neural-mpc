@@ -22,27 +22,19 @@ setup(
             glob("gazebo/meshes/*.dae"),
         ),
         (
-            os.path.join(
-                "share", package_name, "gazebo", "models", "crazyflie_1"
-            ),
+            os.path.join("share", package_name, "gazebo", "models", "crazyflie_1"),
             glob("gazebo/models/crazyflie_1/*.sdf"),
         ),
         (
-            os.path.join(
-                "share", package_name, "gazebo", "models", "crazyflie_2"
-            ),
+            os.path.join("share", package_name, "gazebo", "models", "crazyflie_2"),
             glob("gazebo/models/crazyflie_2/*.sdf"),
         ),
         (
-            os.path.join(
-                "share", package_name, "gazebo", "models", "crazyflie_3"
-            ),
+            os.path.join("share", package_name, "gazebo", "models", "crazyflie_3"),
             glob("gazebo/models/crazyflie_3/*.sdf"),
         ),
         (
-            os.path.join(
-                "share", package_name, "gazebo", "models", "crazyflie_4"
-            ),
+            os.path.join("share", package_name, "gazebo", "models", "crazyflie_4"),
             glob("gazebo/models/crazyflie_4/*.sdf"),
         ),
         (

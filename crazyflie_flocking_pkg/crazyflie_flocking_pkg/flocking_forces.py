@@ -36,10 +36,7 @@ class ForcesGenerator:
         for name, neighbor in neighbors.items():
             n_pos = neighbor.get_position()
 
-            neighbor_distance = (
-                np.linalg.norm(n_pos - self_pos)
-                - 2 * self.config.dimensions.radius
-            )
+            neighbor_distance = np.linalg.norm(n_pos - self_pos) - 2 * self.config.dimensions.radius
 
             #  It's not sure that this is right, it's done to avoid the case of the over-pulling of the drones if they're a lot
             #  namely, if you have a lot of robot, thay can't be at d_eq to each other, but just a subset of them
@@ -51,22 +48,16 @@ class ForcesGenerator:
 
             # Direction of vector between me and nth neighbor
             u_ij = get_versor(n_pos - self_pos).reshape((3, 1))
-            self.ros2_logger.info(
-                f"\n ************** {u_ij.transpose()} *****************\n"
-            )
+            self.ros2_logger.info(f"\n ************** {u_ij.transpose()} *****************\n")
 
             f_inter_robot += (
-                self.config.gains.k_r
-                * (neighbor_distance - self.config.dimensions.d_eq)
-                * u_ij
+                self.config.gains.k_r * (neighbor_distance - self.config.dimensions.d_eq) * u_ij
             )
         f_inter_robot[2] = 0
 
         # Obstacle avoidance forces, formula (3)
         for o in obstacles:
-            obstacle_distance = (
-                np.linalg.norm(o.rel_pos) - self.config.dimensions.radius
-            )
+            obstacle_distance = np.linalg.norm(o.rel_pos) - self.config.dimensions.radius
 
             # Versor to obstacle computation
             self_yaw = np.deg2rad(state.yaw)

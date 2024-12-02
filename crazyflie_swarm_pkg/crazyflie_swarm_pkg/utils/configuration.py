@@ -30,6 +30,4 @@ class SwarmConfig:
     led_publisher_rate: float = field(default=1.0)
     velocity_publisher_rate: float = field(default=1.0)
     simulation: bool = field(default=True)
-    crazyflies: List[CrazyflieConfig] = field(
-        default_factory=list[CrazyflieConfig]
-    )
+    crazyflies: List[CrazyflieConfig] = field(default_factory=list[CrazyflieConfig])

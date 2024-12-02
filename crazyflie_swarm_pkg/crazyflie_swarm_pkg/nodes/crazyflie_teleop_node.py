@@ -16,9 +16,7 @@ class CrazyflieTeleopNode(Node):
         # * Load Config
         self.declare_parameter("swarm_config_path", "")
         swarm_config_path = (
-            self.get_parameter("swarm_config_path")
-            .get_parameter_value()
-            .string_value
+            self.get_parameter("swarm_config_path").get_parameter_value().string_value
         )
         config = load_config(swarm_config_path, SwarmConfig)
         self.config = config
@@ -46,9 +44,7 @@ class CrazyflieTeleopNode(Node):
             self.velocity_publishers[name] = publisher
             self.create_timer(
                 1 / velocity_publisher_rate,
-                lambda name=name, publisher=publisher: self.velocity_callback(
-                    name, publisher
-                ),
+                lambda name=name, publisher=publisher: self.velocity_callback(name, publisher),
             )
 
         # * Hardcoded publisher for one "simulated" cf

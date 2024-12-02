@@ -13,9 +13,7 @@ def generate_launch_description():
     mpc = Node(
         package="crazyflie_mpc_pkg",
         executable="crazyflie_mpc_exec",
-        parameters=[
-            {"mpc_config_path": os.path.join(root, "config/config.yaml")}
-        ],
+        parameters=[{"mpc_config_path": os.path.join(root, "config/config.yaml")}],
     )
 
     ld.add_action(mpc)

@@ -5,9 +5,7 @@ from omegaconf import OmegaConf
 from rclpy.impl.rcutils_logger import RcutilsLogger
 
 
-def log(
-    message="", ros2_logger: RcutilsLogger = None, ros2_logger_level="info"
-) -> None:
+def log(message="", ros2_logger: RcutilsLogger = None, ros2_logger_level="info") -> None:
     if ros2_logger is None:
         print(message)
         return

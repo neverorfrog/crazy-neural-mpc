@@ -5,11 +5,7 @@ from rclpy.impl.rcutils_logger import RcutilsLogger
 
 from crazyflie_flocking_pkg.flocking_forces import ForcesGenerator
 from crazyflie_flocking_pkg.utils.configuration import FlockingConfig
-from crazyflie_flocking_pkg.utils.definitions import (
-    Direction,
-    Obstacle,
-    ObstacleType,
-)
+from crazyflie_flocking_pkg.utils.definitions import Direction, Obstacle, ObstacleType
 from crazyflie_swarm_pkg.crazyflie import CrazyState
 
 
@@ -72,12 +68,8 @@ class Agent:
             u_i = np.reshape(np.array([cosyaw, sinyaw, 0]), (3, 1))
 
             # Linear speed, formulas (5), (7) TODO: aggiusta
-            v_scalar = self.config.gains.k_l * (
-                np.dot(np.reshape(overall_force, (1, 3)), u_i)
-            )
-            v_scalar = np.clip(
-                v_scalar, self.config.bounds.v_min, self.config.bounds.v_max
-            )
+            v_scalar = self.config.gains.k_l * (np.dot(np.reshape(overall_force, (1, 3)), u_i))
+            v_scalar = np.clip(v_scalar, self.config.bounds.v_min, self.config.bounds.v_max)
             v = v_scalar[0] * u_i
             v = np.reshape(v, (3,))
 
@@ -85,9 +77,7 @@ class Agent:
             # u_i_orthogonal computed as vector orthogonal to u_i and vector_orthogonal_to_plane (z axis)
             zdir = np.array([[0], [0], [1]])
             u_i_orthogonal = np.cross(zdir[:, 0], u_i[:, 0])
-            omega_scalar = self.config.gains.k_a * (
-                np.dot(overall_force, u_i_orthogonal)
-            )
+            omega_scalar = self.config.gains.k_a * (np.dot(overall_force, u_i_orthogonal))
             self.ros2_logger.info(f"omega_scalar: {np.round(omega_scalar,2)}")
             omega_scalar = np.clip(
                 omega_scalar,
@@ -107,9 +97,7 @@ class Agent:
         self.ros2_logger.info(f"Overall Force: {np.round(overall_force,2)}")
         if not is_omnidirectional:
             self.ros2_logger.info(f"u_i: {np.round(u_i.transpose(),2)}")
-            self.ros2_logger.info(
-                f"u_i_orthogonal: {np.round(u_i_orthogonal,2)}"
-            )
+            self.ros2_logger.info(f"u_i_orthogonal: {np.round(u_i_orthogonal,2)}")
             self.ros2_logger.info(f"v_scalar: {np.round(v_scalar,2)}")
         self.ros2_logger.info(f"v: {np.round(v,2)}")
         self.ros2_logger.info(f"omega: {np.round(omega,2)}")
@@ -228,9 +216,7 @@ class Agent:
             for key, neighbor in neighbors.items():
 
                 dist = np.linalg.norm(
-                    o.abs_pos
-                    + neighbor.get_initial_position()
-                    - neighbor.get_position()
+                    o.abs_pos + neighbor.get_initial_position() - neighbor.get_position()
                 )
 
                 if (

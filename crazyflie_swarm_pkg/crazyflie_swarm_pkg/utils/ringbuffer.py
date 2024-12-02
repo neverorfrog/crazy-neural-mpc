@@ -2,8 +2,17 @@ import numpy as np
 
 
 class RingBuffer:
+    """
+    RingBuffer object to store data in a circular buffer.
+    """
 
     def __init__(self, size: int, shape: tuple) -> None:
+        """
+        Initializes a RingBuffer object.
+        Args:
+            size (int): The maximum number of elements the ring buffer can hold.
+            shape (tuple): The shape of each element in the ring buffer.
+        """
         self.size: int = size
         self.data = np.zeros(shape=(size, *shape), dtype=np.float32)
         self.index: int = 0
@@ -45,6 +54,9 @@ class RingBuffer:
 
     def __iter__(self):
         return iter(self.data)
+
+    def empty(self) -> bool:
+        return self.index == 0 and not self.__filled
 
     @property
     def shape(self):

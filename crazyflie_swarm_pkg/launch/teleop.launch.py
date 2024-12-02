@@ -14,9 +14,7 @@ def generate_launch_description():
         package="crazyflie_swarm_pkg",
         name="crazyflie_teleop_node",
         executable="crazyflie_teleop_exec",
-        parameters=[
-            {"swarm_config_path": os.path.join(root, "config/config.yaml")}
-        ],
+        parameters=[{"swarm_config_path": os.path.join(root, "config/config.yaml")}],
     )
 
     ld.add_action(dock)

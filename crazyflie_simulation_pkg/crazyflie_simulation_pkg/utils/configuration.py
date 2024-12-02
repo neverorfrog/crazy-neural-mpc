@@ -24,6 +24,4 @@ class SwarmConfig:
     velocity_publisher_rate: float = field(default=1.0)
     max_ang_z_rate: float = field(default=0.4)
     height: float = field(default=0.5)
-    crazyflies: List[CrazyflieConfig] = field(
-        default_factory=list[CrazyflieConfig]
-    )
+    crazyflies: List[CrazyflieConfig] = field(default_factory=list[CrazyflieConfig])

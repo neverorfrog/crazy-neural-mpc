@@ -14,9 +14,7 @@ def generate_launch_description():
         package="crazyflie_swarm_pkg",
         name="crazyflie_swarm_node",
         executable="crazyflie_swarm_exec",
-        parameters=[
-            {"swarm_config_path": os.path.join(root, "config/config.yaml")}
-        ],
+        parameters=[{"swarm_config_path": os.path.join(root, "config/config.yaml")}],
     )
 
     rviz = Node(
@@ -32,6 +30,9 @@ def generate_launch_description():
             )
         ],
         output="screen",
+        parameters=[{
+            "use_sim_time": True,
+        }]
     )
 
     ld.add_action(swarm)

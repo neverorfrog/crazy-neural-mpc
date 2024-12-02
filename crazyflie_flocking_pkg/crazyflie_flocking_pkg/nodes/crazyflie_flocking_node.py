@@ -19,18 +19,14 @@ class CrazyflieFlockingNode(Node):  # type: ignore
         # * Load Config
         self.declare_parameter("swarm_config_path", "")
         swarm_config_path = (
-            self.get_parameter("swarm_config_path")
-            .get_parameter_value()
-            .string_value
+            self.get_parameter("swarm_config_path").get_parameter_value().string_value
         )
         swarm_config = load_config(swarm_config_path, SwarmConfig)
         self.swarm_config = swarm_config
 
         self.declare_parameter("flocking_config_path", "")
         flocking_config_path = (
-            self.get_parameter("flocking_config_path")
-            .get_parameter_value()
-            .string_value
+            self.get_parameter("flocking_config_path").get_parameter_value().string_value
         )
         flocking_config = load_config(flocking_config_path, FlockingConfig)
         self.flocking_config = flocking_config
@@ -65,9 +61,7 @@ class CrazyflieFlockingNode(Node):  # type: ignore
             self.cmd_vel_publishers[name] = publisher
             self.create_timer(
                 1 / velocity_publisher_rate,
-                lambda name=name, publisher=publisher: self.cmd_vel_callback(
-                    name, publisher
-                ),
+                lambda name=name, publisher=publisher: self.cmd_vel_callback(name, publisher),
             )
 
         # * Subscriptions

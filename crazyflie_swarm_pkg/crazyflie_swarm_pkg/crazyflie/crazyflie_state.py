@@ -11,9 +11,9 @@ class CrazyState:
     z: float = 0.0
 
     # Euler orientation
-    roll: float = 0.0
-    pitch: float = 0.0
-    yaw: float = 0.0
+    roll: float = 0.0  # In Degrees by default
+    pitch: float = 0.0  # In Degrees by default
+    yaw: float = 0.0  # In Degrees by default
 
     # Linear Velocity
     vx: float = 0.0

@@ -1,5 +1,6 @@
 import numpy as np
-from trajectory import Trajectory, TrajectoryState
+
+from crazyflie_mpc_pkg.trajectories.trajectory import Trajectory, TrajectoryState
 
 
 class CircularTrajectory(Trajectory):  # type: ignore

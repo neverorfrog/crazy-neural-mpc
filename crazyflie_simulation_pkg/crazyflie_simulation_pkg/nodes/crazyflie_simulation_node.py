@@ -21,9 +21,7 @@ class CrazyflieSimulation(Node):
         # * Load Config
         self.declare_parameter("swarm_config_path", "")
         swarm_config_path = (
-            self.get_parameter("swarm_config_path")
-            .get_parameter_value()
-            .string_value
+            self.get_parameter("swarm_config_path").get_parameter_value().string_value
         )
         config = load_config(swarm_config_path, SwarmConfig)
         self.config = config
@@ -61,18 +59,12 @@ class CrazyflieSimulation(Node):
         state_publisher_rate = self.config.state_publisher_rate
         self.pose_publishers: Dict[str, Publisher] = {}
         for name in self.swarm:
-            publisher = self.create_publisher(
-                CrazyflieState, f"/{name}/state", 10
-            )
-            self.pose_publishers[name] = self.create_publisher(
-                PoseStamped, f"/{name}/pose", 10
-            )
+            publisher = self.create_publisher(CrazyflieState, f"/{name}/state", 10)
+            self.pose_publishers[name] = self.create_publisher(PoseStamped, f"/{name}/pose", 10)
 
             self.create_timer(
                 1 / state_publisher_rate,
-                lambda name=name, publisher=publisher: self.state_callback(
-                    name, publisher
-                ),
+                lambda name=name, publisher=publisher: self.state_callback(name, publisher),
             )
 
         # * Subscriptions
@@ -85,9 +77,7 @@ class CrazyflieSimulation(Node):
             subscriber = self.create_subscription(
                 Twist,
                 incoming_twist_topic,
-                lambda msg, name=name: self.subscriber_velocity_callback(
-                    msg, name
-                ),
+                lambda msg, name=name: self.subscriber_velocity_callback(msg, name),
                 10,
             )
             self.velocity_subscribers[name] = subscriber
@@ -206,24 +196,16 @@ class CrazyflieSimulation(Node):
     def subscriber_velocity_callback(self, msg: Twist, name: str) -> None:
         self.current_twist_commands[name] = msg
 
-    def publisher_velocity_callback(
-        self, name: str, publisher: Publisher
-    ) -> None:
+    def publisher_velocity_callback(self, name: str, publisher: Publisher) -> None:
         height_command = self.current_twist_commands[name].linear.z
         new_twist_msg = Twist()
         if self.is_flying[name]:
             new_twist_msg.linear.x = self.current_twist_commands[name].linear.x
             new_twist_msg.linear.y = self.current_twist_commands[name].linear.y
             new_twist_msg.linear.z = self.current_twist_commands[name].linear.z
-            new_twist_msg.angular.x = self.current_twist_commands[
-                name
-            ].angular.x
-            new_twist_msg.angular.y = self.current_twist_commands[
-                name
-            ].angular.y
-            new_twist_msg.angular.z = self.current_twist_commands[
-                name
-            ].angular.z
+            new_twist_msg.angular.x = self.current_twist_commands[name].angular.x
+            new_twist_msg.angular.y = self.current_twist_commands[name].angular.y
+            new_twist_msg.angular.z = self.current_twist_commands[name].angular.z
 
         if height_command > 0 and not self.is_flying[name]:
             new_twist_msg.linear.z = 0.5
@@ -240,10 +222,7 @@ class CrazyflieSimulation(Node):
                 self.keep_height[name] = False
                 self.get_logger().info("Landing completed")
 
-        if (
-            abs(self.current_twist_commands[name].angular.z)
-            > self.max_ang_z_rate
-        ):
+        if abs(self.current_twist_commands[name].angular.z) > self.max_ang_z_rate:
             new_twist_msg.angular.z = (
                 self.max_ang_z_rate
                 * abs(self.current_twist_commands[name].angular.z)

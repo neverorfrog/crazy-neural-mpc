@@ -104,6 +104,4 @@ class QuadrotorSimplified:
         yawdot = (yaw_c - yaw) / self.tau
 
         # vector function of explicit dynamics
-        self.f_expl = vertcat(
-            pxdot, pydot, pzdot, vxdot, vydot, vzdot, rolldot, pitchdot, yawdot
-        )
+        self.f_expl = vertcat(pxdot, pydot, pzdot, vxdot, vydot, vzdot, rolldot, pitchdot, yawdot)

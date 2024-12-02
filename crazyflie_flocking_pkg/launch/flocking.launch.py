@@ -17,12 +17,8 @@ def generate_launch_description():
         executable="crazyflie_flocking_exec",
         parameters=[
             {
-                "flocking_config_path": os.path.join(
-                    flocking_root, "config/config.yaml"
-                ),
-                "swarm_config_path": os.path.join(
-                    swarm_root, "config/config.yaml"
-                ),
+                "flocking_config_path": os.path.join(flocking_root, "config/config.yaml"),
+                "swarm_config_path": os.path.join(swarm_root, "config/config.yaml"),
             }
         ],
     )

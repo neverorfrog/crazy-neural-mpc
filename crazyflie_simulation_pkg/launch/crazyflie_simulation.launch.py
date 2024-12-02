@@ -32,13 +32,9 @@ def generate_launch_description():
 
     # Setup to launch the simulator and Gazebo world
     gz_sim = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_ros_gz_sim, "launch", "gz_sim.launch.py")
-        ),
+        PythonLaunchDescriptionSource(os.path.join(pkg_ros_gz_sim, "launch", "gz_sim.launch.py")),
         launch_arguments={
-            "gz_args": PathJoinSubstitution(
-                [gz_model_path, "worlds", "crazyflie_world.sdf -r"]
-            )
+            "gz_args": PathJoinSubstitution([gz_model_path, "worlds", "crazyflie_world.sdf -r"])
         }.items(),
     )
 
@@ -47,9 +43,7 @@ def generate_launch_description():
         executable="parameter_bridge",
         parameters=[
             {
-                "config_file": os.path.join(
-                    root, "config", "ros_gz_crazyflie_bridge.yaml"
-                ),
+                "config_file": os.path.join(root, "config", "ros_gz_crazyflie_bridge.yaml"),
             }
         ],
         output="screen",
