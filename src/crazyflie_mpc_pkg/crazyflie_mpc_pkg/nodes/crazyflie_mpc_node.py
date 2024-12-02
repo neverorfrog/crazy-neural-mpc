@@ -308,7 +308,7 @@ def main(args=None):
 
     N_AGENTS = 1
 
-    config = load_config("crazyflie_mpc_pkg/config/config.yaml", MpcConfig)
+    config = load_config("src/crazyflie_mpc_pkg/config/config.yaml", MpcConfig)
     rclpy.logging.get_logger("main").info(f"Configuration: {config}")
 
     quadmodel = QuadrotorSimplified(config.quadmodel)

@@ -704,8 +704,8 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/61/7a/f38385f1b2d5f54221baf1db3d6371dc6eef8041d95abff39576c694e9d9/transforms3d-0.4.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/17/d9a5cf4fcf46291856d1e90762e36cbabd2a56c7265da0d1d9508c8e3943/triton-3.1.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/26/9f/ad63fc0248c5379346306f8668cda6e2e2e9c95e01216d2b8ffd9ff037d0/typing_extensions-4.12.2-py3-none-any.whl
-      - pypi: crazyflie_mpc_pkg/external/acados/interfaces/acados_template
-      - pypi: crazyflie_simulation_pkg/external/crazyflie-lib-python
+      - pypi: external/acados/interfaces/acados_template
+      - pypi: external/crazyflie-lib-python
 packages:
 - kind: conda
   name: _libgcc_mutex
@@ -741,7 +741,7 @@ packages:
 - kind: pypi
   name: acados-template
   version: '0.1'
-  path: crazyflie_mpc_pkg/external/acados/interfaces/acados_template
+  path: external/acados/interfaces/acados_template
   sha256: cef15a08c851d07101a7ce643f801e35db39386ab4bd19d88546671be3d94304
   requires_dist:
   - numpy
@@ -1202,7 +1202,7 @@ packages:
 - kind: pypi
   name: cflib
   version: 0.1.24
-  path: crazyflie_simulation_pkg/external/crazyflie-lib-python
+  path: external/crazyflie-lib-python
   sha256: beb4d6043294f2172db70e6899f665764c021b858b7c48a508e24757b32da05c
   requires_dist:
   - pyusb>=1.0.0b2

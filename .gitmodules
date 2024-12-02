@@ -1,11 +1,11 @@
 [submodule "crazyflie_simulation_pkg/external/crazyflie-firmware"]
-	path = crazyflie_simulation_pkg/external/crazyflie-firmware
+	path = external/crazyflie-firmware
 	url = https://github.com/llanesc/crazyflie-firmware.git
 	branch = sitl-release
 [submodule "crazyflie_simulation_pkg/external/crazyflie-lib-python"]
-	path = crazyflie_simulation_pkg/external/crazyflie-lib-python
+	path = external/crazyflie-lib-python
 	url = https://github.com/llanesc/crazyflie-lib-python.git
 	branch = sitl-release
-[submodule "crazyflie_mpc_pkg/external/acados"]
-	path = crazyflie_mpc_pkg/external/acados
+[submodule "external/acados"]
+	path = external/acados
 	url = https://github.com/acados/acados.git
