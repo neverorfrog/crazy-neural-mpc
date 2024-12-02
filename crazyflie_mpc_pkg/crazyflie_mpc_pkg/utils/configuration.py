@@ -71,9 +71,5 @@ class MpcConfig:
     horizon: int = MISSING
     quadmodel: QuadmodelConfig = field(default_factory=QuadmodelConfig)
     cost_weights: CostWeights = field(default_factory=CostWeights)
-    input_constraints: InputConstraints = field(
-        default_factory=InputConstraints
-    )
-    state_constraints: StateConstraints = field(
-        default_factory=StateConstraints
-    )
+    input_constraints: InputConstraints = field(default_factory=InputConstraints)
+    state_constraints: StateConstraints = field(default_factory=StateConstraints)

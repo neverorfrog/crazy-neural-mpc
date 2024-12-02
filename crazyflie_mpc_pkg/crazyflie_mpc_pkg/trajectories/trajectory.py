@@ -22,5 +22,5 @@ class Trajectory(ABC):
         pass
 
     @abstractmethod
-    def update(self, dt: float) -> None:
+    def update(self, dt: float) -> TrajectoryState:
         pass

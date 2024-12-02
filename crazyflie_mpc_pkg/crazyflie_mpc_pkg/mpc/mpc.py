@@ -1,6 +1,7 @@
 import importlib
 import pathlib
 import sys
+from typing import Tuple
 
 import numpy as np
 from acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver
@@ -9,6 +10,7 @@ from scipy.linalg import block_diag
 
 from crazyflie_mpc_pkg.mpc.quadrotor_model import QuadrotorSimplified
 from crazyflie_mpc_pkg.utils.configuration import MpcConfig
+from rclpy.impl.rcutils_logger import RcutilsLogger
 
 
 class ModelPredictiveController:
@@ -17,25 +19,22 @@ class ModelPredictiveController:
         name: str,
         quadrotor: QuadrotorSimplified,
         config: MpcConfig,
-        to_generate: bool = False,
+        to_generate: bool = True,
     ):
         self.name = name
         self.quad = quadrotor
         self.config = config
         self.to_generate = to_generate
         self.N = config.horizon
+        self.tf = self.N * config.dt
         self.acados_gen_path = (
-            pathlib.Path(
-                get_package_share_directory("crazyflie_mpc_pkg")
-            ).resolve()
+            pathlib.Path(get_package_share_directory("crazyflie_mpc_pkg")).resolve()
             / "acados_generated_files"
         )
         self.k = 0
         self.ocp_solver = None
         self.solver_locked = False
-        self.hover_control = np.array(
-            [0.0, 0.0, 0.0, self.quad.gravity * self.quad.mass]
-        )
+        self.hover_control = np.array([0.0, 0.0, 0.0, self.quad.gravity * self.quad.mass])
 
         if not self.to_generate:
             try:
@@ -44,10 +43,8 @@ class ModelPredictiveController:
                 acados_ocp_solver_pyx = importlib.import_module(
                     "c_generated_code.acados_ocp_solver_pyx"
                 )
-                self.solver: AcadosOcpSolver = (
-                    acados_ocp_solver_pyx.AcadosOcpSolverCython(
-                        self.name, "SQP", self.N
-                    )
+                self.solver: AcadosOcpSolver = acados_ocp_solver_pyx.AcadosOcpSolverCython(
+                    self.name, "SQP", self.N
                 )
                 print("Acados cython module imported successfully.")
             except ImportError:
@@ -68,24 +65,18 @@ class ModelPredictiveController:
         # Define Optimal Control Problem
         self.ocp = AcadosOcp()
         self.ocp.model = model
-        self.ocp.code_export_directory = self.acados_gen_path / (
-            "c_generated_code"
-        )
+        self.ocp.code_export_directory = self.acados_gen_path / ("c_generated_code")
         json_file = str(self.acados_gen_path / "acados_ocp.json")
 
         # Dimensions
         self.nx = self.quad.x.rows()  # number of states
         self.nu = self.quad.u.rows()  # number of controls
         self.ny = self.nx + self.nu  # number of optimization variables
-        self.ny_e = (
-            self.nx
-        )  # number of optimization variables at the last stage
+        self.ny_e = self.nx  # number of optimization variables at the last stage
 
         # Horizon
         self.ocp.solver_options.N_horizon = self.N  # number of horizon stages
-        self.ocp.solver_options.tf = (
-            self.config.dt * self.N
-        )  # prediction horizon
+        self.ocp.solver_options.tf = self.tf  # prediction horizon
 
         # Cost function
         self.ocp.cost.cost_type = "LINEAR_LS"
@@ -118,13 +109,9 @@ class ModelPredictiveController:
         self.ocp.cost.W_e = Q
 
         # Mapping Matrices
-        self.ocp.cost.Vx = np.vstack(
-            [np.eye(self.nx), np.zeros((self.nu, self.nx))]
-        )
+        self.ocp.cost.Vx = np.vstack([np.eye(self.nx), np.zeros((self.nu, self.nx))])
         self.ocp.cost.Vx_e = np.eye(self.nx)
-        self.ocp.cost.Vu = np.vstack(
-            [np.zeros((self.nx, self.nu)), np.eye(self.nu)]
-        )
+        self.ocp.cost.Vu = np.vstack([np.zeros((self.nx, self.nu)), np.eye(self.nu)])
 
         # Reference Stub
         self.ocp.cost.yref = np.zeros(self.ny)
@@ -198,11 +185,35 @@ class ModelPredictiveController:
         AcadosOcpSolver.build(self.ocp.code_export_directory, with_cython=True)
         if self.acados_gen_path.is_dir():
             sys.path.append(str(self.acados_gen_path))
-        acados_ocp_solver_pyx = importlib.import_module(
-            "c_generated_code.acados_ocp_solver_pyx"
+        acados_ocp_solver_pyx = importlib.import_module("c_generated_code.acados_ocp_solver_pyx")
+        self.solver: AcadosOcpSolver = acados_ocp_solver_pyx.AcadosOcpSolverCython(
+            self.name, self.ocp.solver_options.nlp_solver_type, self.N
         )
-        self.solver: AcadosOcpSolver = (
-            acados_ocp_solver_pyx.AcadosOcpSolverCython(
-                self.name, self.ocp.solver_options.nlp_solver_type, self.N
-            )
-        )
+
+    def solve(self, x0: np.ndarray, yref: np.ndarray, yref_e: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        if self.solver_locked:
+            return
+        self.solver_locked = True
+
+        for i in range(self.N):
+            self.solver.set(i, 'yref', np.array([*yref[:,i], *self.hover_control]))
+        self.solver.set(self.N, 'yref', yref_e)
+        
+        x_mpc = np.zeros((self.nx, self.N + 1))
+        self.solver.set(0, "lbx", x0)
+        self.solver.set(0, "ubx", x0)
+        u_mpc = np.zeros((self.nu, self.N))
+        
+        self.solver.solve()
+        
+        # extract state and control solution from solver
+        for i in range(self.N):
+            x_mpc[:, i] = self.solver.get(i, "x")
+            u_mpc[:, i] = self.solver.get(i, "u")
+        x_mpc[:, self.N] = self.solver.get(self.N, "x")
+        
+        self.solver_locked = False
+        
+        return x_mpc, u_mpc
+        
+        

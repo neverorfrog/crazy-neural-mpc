@@ -2,6 +2,8 @@ import time
 from typing import Dict
 
 import cflib.crtp as crtp
+import numpy as np
+from crazyflie_swarm_interfaces.msg import AttitudeSetpoint
 import rclpy
 import tf_transformations as tft
 from geometry_msgs.msg import PoseStamped, TransformStamped, Twist
@@ -75,6 +77,15 @@ class CrazyflieSwarmNode(Node):
                 lambda msg, name=name: self.velocity_callback(msg, name),
                 10,
             )
+            
+        self.attitude_subscribers: Dict[str, Subscription] = {}
+        for name, _ in self.swarm.items():
+            self.attitude_subscribers[name] = self.create_subscription(
+                AttitudeSetpoint,
+                f"/{name}/cmd_attitude",
+                lambda msg, name=name: self.attitude_callback(msg, name),
+                10,
+            )
 
         # * Publishers
 
@@ -86,27 +97,19 @@ class CrazyflieSwarmNode(Node):
         self.pose_publishers: Dict[str, Publisher] = {}
         state_publisher_rate = self.config.state_publisher_rate
         for name, _ in self.swarm.items():
-            publisher = self.create_publisher(
-                CrazyflieState, f"/{name}/state", 10
-            )
-            self.pose_publishers[name] = self.create_publisher(
-                PoseStamped, f"/{name}/pose", 10
-            )
+            publisher = self.create_publisher(CrazyflieState, f"/{name}/state", 10)
+            self.pose_publishers[name] = self.create_publisher(PoseStamped, f"/{name}/pose", 10)
             self.state_publishers[name] = publisher
             self.create_timer(
                 1 / state_publisher_rate,
-                lambda name=name, publisher=publisher: self.state_callback(
-                    name, publisher
-                ),
+                lambda name=name, publisher=publisher: self.state_callback(name, publisher),
             )
 
         # * Services
         self.take_off_service = self.create_service(
             TakeOff, "/take_off", self.take_off_service_callback
         )
-        self.land_service = self.create_service(
-            Land, "/land", self.land_service_callback
-        )
+        self.land_service = self.create_service(Land, "/land", self.land_service_callback)
 
         # * Timers
         for name, _ in self.swarm.items():
@@ -115,9 +118,7 @@ class CrazyflieSwarmNode(Node):
     def _get_config(self) -> SwarmConfig:
         self.declare_parameter("swarm_config_path", "")
         swarm_config_path = (
-            self.get_parameter("swarm_config_path")
-            .get_parameter_value()
-            .string_value
+            self.get_parameter("swarm_config_path").get_parameter_value().string_value
         )
         config = load_config(swarm_config_path, SwarmConfig)
 
@@ -152,6 +153,22 @@ class CrazyflieSwarmNode(Node):
             pass
         except Exception as e:
             self.get_logger().error(f"Error in velocity_callback: {e}")
+            
+    def attitude_callback(self, msg: AttitudeSetpoint, name: str) -> None:
+        roll = msg.roll
+        pitch = msg.pitch
+        yaw_rate = msg.yaw_rate
+        thrust = msg.thrust
+
+        self.get_logger().info(
+            f"Attitude command for {name}: {roll}, {pitch}, {yaw_rate}, {thrust}"
+        )
+
+        try:
+            self.swarm[name].set_attitude(roll, pitch, yaw_rate, thrust)
+            pass
+        except Exception as e:
+            self.get_logger().error(f"Error in attitude_callback: {e}")
 
     # * Publishers Callbacks
     def state_callback(self, name: str, publisher: Publisher) -> None:
@@ -192,7 +209,7 @@ class CrazyflieSwarmNode(Node):
             pose.pose.position.x = state.x
             pose.pose.position.y = state.y
             pose.pose.position.z = state.z
-            q = tft.quaternion_from_euler(state.roll, state.pitch, state.yaw)
+            q = tft.quaternion_from_euler(np.radians(state.roll), np.radians(state.pitch), np.radians(state.yaw))
             pose.pose.orientation.x = q[0]
             pose.pose.orientation.y = q[1]
             pose.pose.orientation.z = q[2]
@@ -206,7 +223,7 @@ class CrazyflieSwarmNode(Node):
             transform.transform.translation.x = state.x
             transform.transform.translation.y = state.y
             transform.transform.translation.z = state.z
-            q = tft.quaternion_from_euler(state.roll, state.pitch, state.yaw)
+            q = tft.quaternion_from_euler(np.radians(state.roll), np.radians(state.pitch), np.radians(state.yaw))
             transform.transform.rotation.x = q[0]
             transform.transform.rotation.y = q[1]
             transform.transform.rotation.z = q[2]
