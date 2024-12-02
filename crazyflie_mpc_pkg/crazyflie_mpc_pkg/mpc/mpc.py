@@ -6,11 +6,11 @@ from typing import Tuple
 import numpy as np
 from acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver
 from ament_index_python import get_package_share_directory
+from rclpy.impl.rcutils_logger import RcutilsLogger
 from scipy.linalg import block_diag
 
 from crazyflie_mpc_pkg.mpc.quadrotor_model import QuadrotorSimplified
 from crazyflie_mpc_pkg.utils.configuration import MpcConfig
-from rclpy.impl.rcutils_logger import RcutilsLogger
 
 
 class ModelPredictiveController:
@@ -190,30 +190,30 @@ class ModelPredictiveController:
             self.name, self.ocp.solver_options.nlp_solver_type, self.N
         )
 
-    def solve(self, x0: np.ndarray, yref: np.ndarray, yref_e: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def solve(
+        self, x0: np.ndarray, yref: np.ndarray, yref_e: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         if self.solver_locked:
             return
         self.solver_locked = True
 
         for i in range(self.N):
-            self.solver.set(i, 'yref', np.array([*yref[:,i], *self.hover_control]))
-        self.solver.set(self.N, 'yref', yref_e)
-        
+            self.solver.set(i, "yref", np.array([*yref[:, i], *self.hover_control]))
+        self.solver.set(self.N, "yref", yref_e)
+
         x_mpc = np.zeros((self.nx, self.N + 1))
         self.solver.set(0, "lbx", x0)
         self.solver.set(0, "ubx", x0)
         u_mpc = np.zeros((self.nu, self.N))
-        
+
         self.solver.solve()
-        
+
         # extract state and control solution from solver
         for i in range(self.N):
             x_mpc[:, i] = self.solver.get(i, "x")
             u_mpc[:, i] = self.solver.get(i, "u")
         x_mpc[:, self.N] = self.solver.get(self.N, "x")
-        
+
         self.solver_locked = False
-        
+
         return x_mpc, u_mpc
-        
-        

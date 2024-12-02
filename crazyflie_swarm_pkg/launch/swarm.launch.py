@@ -30,9 +30,11 @@ def generate_launch_description():
             )
         ],
         output="screen",
-        parameters=[{
-            "use_sim_time": True,
-        }]
+        parameters=[
+            {
+                "use_sim_time": True,
+            }
+        ],
     )
 
     ld.add_action(swarm)

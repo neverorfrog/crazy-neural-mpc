@@ -102,7 +102,9 @@ class CrazyflieMPC(rclpy.node.Node):
 
         x0 = np.array([*self.position, *self.attitude, *self.velocity])
         x_mpc, u_mpc = self.mpc.solve(x0, yref, yref_e)
-        self.cmd_queue = deque(u_mpc.T) # store the control inputs in a deque (it is important to have the control inputs per rows)
+        self.cmd_queue = deque(
+            u_mpc.T
+        )  # store the control inputs in a deque (it is important to have the control inputs per rows)
 
     def _state_callback(self, msg: CrazyflieState):
         self.position = np.array([msg.position[0], msg.position[1], msg.position[2]])

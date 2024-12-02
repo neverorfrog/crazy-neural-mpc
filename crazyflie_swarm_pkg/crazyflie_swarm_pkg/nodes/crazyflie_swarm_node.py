@@ -3,7 +3,6 @@ from typing import Dict
 
 import cflib.crtp as crtp
 import numpy as np
-from crazyflie_swarm_interfaces.msg import AttitudeSetpoint
 import rclpy
 import tf_transformations as tft
 from geometry_msgs.msg import PoseStamped, TransformStamped, Twist
@@ -11,7 +10,7 @@ from rclpy.node import Node, Publisher, Subscription
 from std_msgs.msg import Float32
 from tf2_ros import TransformBroadcaster
 
-from crazyflie_swarm_interfaces.msg import CrazyflieState
+from crazyflie_swarm_interfaces.msg import AttitudeSetpoint, CrazyflieState
 from crazyflie_swarm_interfaces.srv import Land, TakeOff
 from crazyflie_swarm_pkg.crazyflie import CrazyflieRobot
 from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
@@ -77,7 +76,7 @@ class CrazyflieSwarmNode(Node):
                 lambda msg, name=name: self.velocity_callback(msg, name),
                 10,
             )
-            
+
         self.attitude_subscribers: Dict[str, Subscription] = {}
         for name, _ in self.swarm.items():
             self.attitude_subscribers[name] = self.create_subscription(
@@ -153,7 +152,7 @@ class CrazyflieSwarmNode(Node):
             pass
         except Exception as e:
             self.get_logger().error(f"Error in velocity_callback: {e}")
-            
+
     def attitude_callback(self, msg: AttitudeSetpoint, name: str) -> None:
         roll = msg.roll
         pitch = msg.pitch
@@ -209,7 +208,9 @@ class CrazyflieSwarmNode(Node):
             pose.pose.position.x = state.x
             pose.pose.position.y = state.y
             pose.pose.position.z = state.z
-            q = tft.quaternion_from_euler(np.radians(state.roll), np.radians(state.pitch), np.radians(state.yaw))
+            q = tft.quaternion_from_euler(
+                np.radians(state.roll), np.radians(state.pitch), np.radians(state.yaw)
+            )
             pose.pose.orientation.x = q[0]
             pose.pose.orientation.y = q[1]
             pose.pose.orientation.z = q[2]
@@ -223,7 +224,9 @@ class CrazyflieSwarmNode(Node):
             transform.transform.translation.x = state.x
             transform.transform.translation.y = state.y
             transform.transform.translation.z = state.z
-            q = tft.quaternion_from_euler(np.radians(state.roll), np.radians(state.pitch), np.radians(state.yaw))
+            q = tft.quaternion_from_euler(
+                np.radians(state.roll), np.radians(state.pitch), np.radians(state.yaw)
+            )
             transform.transform.rotation.x = q[0]
             transform.transform.rotation.y = q[1]
             transform.transform.rotation.z = q[2]
