@@ -6,7 +6,6 @@ from typing import Tuple
 import numpy as np
 from acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver
 from ament_index_python import get_package_share_directory
-from rclpy.impl.rcutils_logger import RcutilsLogger
 from scipy.linalg import block_diag
 
 from crazyflie_mpc_pkg.mpc.quadrotor_model import QuadrotorSimplified

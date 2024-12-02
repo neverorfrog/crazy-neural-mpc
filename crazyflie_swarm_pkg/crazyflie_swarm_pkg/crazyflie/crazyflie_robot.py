@@ -68,21 +68,11 @@ class CrazyflieRobot:
         self.multiranger_attached_event.clear()
         self.multiranger_sensor = Multiranger(self.scf)
         self.__buffer: Dict[RangeDirection, RingBuffer] = {}
-        self.__buffer[RangeDirection.FRONT] = RingBuffer(
-            multiranger_buffer_size, (1,)
-        )
-        self.__buffer[RangeDirection.RIGHT] = RingBuffer(
-            multiranger_buffer_size, (1,)
-        )
-        self.__buffer[RangeDirection.BACK] = RingBuffer(
-            multiranger_buffer_size, (1,)
-        )
-        self.__buffer[RangeDirection.LEFT] = RingBuffer(
-            multiranger_buffer_size, (1,)
-        )
-        self.__buffer[RangeDirection.UP] = RingBuffer(
-            multiranger_buffer_size, (1,)
-        )
+        self.__buffer[RangeDirection.FRONT] = RingBuffer(multiranger_buffer_size, (1,))
+        self.__buffer[RangeDirection.RIGHT] = RingBuffer(multiranger_buffer_size, (1,))
+        self.__buffer[RangeDirection.BACK] = RingBuffer(multiranger_buffer_size, (1,))
+        self.__buffer[RangeDirection.LEFT] = RingBuffer(multiranger_buffer_size, (1,))
+        self.__buffer[RangeDirection.UP] = RingBuffer(multiranger_buffer_size, (1,))
         self.__mean_buffer: Dict[RangeDirection, float] = {}
         self.__mean_buffer[RangeDirection.FRONT] = 0.0
         self.__mean_buffer[RangeDirection.RIGHT] = 0.0
@@ -120,10 +110,7 @@ class CrazyflieRobot:
                 or not self.__flow_deck_attached
                 or (not self.__multiranger_attached and self.multiranger)
             ):
-                if (
-                    time.time() - start_initialization
-                    > self.__connection_timeout
-                ):
+                if time.time() - start_initialization > self.__connection_timeout:
                     log(f"Initialization timeout for {self.name}", self.logger)
                     self.close_connection()
                     return False
@@ -210,18 +197,10 @@ class CrazyflieRobot:
 
         # * Multirange values (filled only if above a certain height)
         if self.state.z > 0.1:
-            self.__buffer[RangeDirection.FRONT].append(
-                self.multiranger_sensor.front
-            )
-            self.__buffer[RangeDirection.RIGHT].append(
-                self.multiranger_sensor.right
-            )
-            self.__buffer[RangeDirection.BACK].append(
-                self.multiranger_sensor.back
-            )
-            self.__buffer[RangeDirection.LEFT].append(
-                self.multiranger_sensor.left
-            )
+            self.__buffer[RangeDirection.FRONT].append(self.multiranger_sensor.front)
+            self.__buffer[RangeDirection.RIGHT].append(self.multiranger_sensor.right)
+            self.__buffer[RangeDirection.BACK].append(self.multiranger_sensor.back)
+            self.__buffer[RangeDirection.LEFT].append(self.multiranger_sensor.left)
             self.__buffer[RangeDirection.UP].append(self.multiranger_sensor.up)
             self.__mean_buffer[RangeDirection.FRONT] = self.__buffer[
                 RangeDirection.FRONT
@@ -235,9 +214,7 @@ class CrazyflieRobot:
             self.__mean_buffer[RangeDirection.LEFT] = self.__buffer[
                 RangeDirection.LEFT
             ].compute_mean()
-            self.__mean_buffer[RangeDirection.UP] = self.__buffer[
-                RangeDirection.UP
-            ].compute_mean()
+            self.__mean_buffer[RangeDirection.UP] = self.__buffer[RangeDirection.UP].compute_mean()
 
         # * Handle take off and land
         z = self.state.z
@@ -255,14 +232,10 @@ class CrazyflieRobot:
         # * Handle multirange
         if self.multiranger and self.take_off_done:
             if (
-                self.__mean_buffer[RangeDirection.FRONT]
-                < self.emergency_stop_distance
-                or self.__mean_buffer[RangeDirection.RIGHT]
-                < self.emergency_stop_distance
-                or self.__mean_buffer[RangeDirection.BACK]
-                < self.emergency_stop_distance
-                or self.__mean_buffer[RangeDirection.LEFT]
-                < self.emergency_stop_distance
+                self.__mean_buffer[RangeDirection.FRONT] < self.emergency_stop_distance
+                or self.__mean_buffer[RangeDirection.RIGHT] < self.emergency_stop_distance
+                or self.__mean_buffer[RangeDirection.BACK] < self.emergency_stop_distance
+                or self.__mean_buffer[RangeDirection.LEFT] < self.emergency_stop_distance
             ):
                 log(f"Emergency stop for Crazyflie {self.name}", self.logger)
                 self.emergency_stop()
@@ -281,12 +254,13 @@ class CrazyflieRobot:
             absolute_height = self.default_take_off_height
         if duration is None:
             duration = self.default_take_off_duration
-        self.logger.info(
-            f"Taking off {self.name} to {absolute_height} m in {duration} s"
-        )
+        self.logger.info(f"Taking off {self.name} to {absolute_height} m in {duration} s")
         self.cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, 1.0)
 
     def land(self, duration=None):
+        if not self.is_flying:
+            log(f"Not flying {self.name}", self.logger)
+            return
         self.is_flying = False
         if duration is None:
             duration = self.default_land_duration
@@ -296,9 +270,9 @@ class CrazyflieRobot:
         self.cf.commander.send_stop_setpoint()
 
     def set_velocity(self, vx, vy, yaw_rate):
+        if not self.__connection_opened:
+            raise Exception("Connection not opened")
         if not self.is_simulated:
-            if not self.__connection_opened:
-                raise Exception("Connection not opened")
             if not self.__flow_deck_attached:
                 raise Exception("Flow deck not attached")
             if self.multiranger and not self.__multiranger_attached:
@@ -306,9 +280,21 @@ class CrazyflieRobot:
         if not self.is_flying:
             log(f"Not flying {self.name}", self.logger)
             return
-        self.cf.commander.send_hover_setpoint(
-            vx, vy, yaw_rate, self.default_take_off_height
-        )
+        self.cf.commander.send_hover_setpoint(vx, vy, yaw_rate, self.default_take_off_height)
+
+    def set_attitude(self, roll, pitch, yaw_rate, thrust):
+        if not self.__connection_opened:
+            raise Exception("Connection not opened")
+        if not self.is_simulated:
+            if not self.__flow_deck_attached:
+                raise Exception("Flow deck not attached")
+            if self.multiranger and not self.__multiranger_attached:
+                raise Exception("Multiranger not attached")
+        # if not self.is_flying:
+        # log(f"Not flying {self.name}", self.logger)
+        # return
+
+        self.cf.commander.send_setpoint(roll, pitch, yaw_rate, thrust)
 
     # * Setters
     def set_led(self, intensity):
@@ -329,28 +315,48 @@ class CrazyflieRobot:
         self.state.mr_left = self.__mean_buffer[RangeDirection.LEFT]
         self.state.mr_up = self.__mean_buffer[RangeDirection.UP]
 
-    def pose_estimator_callback(self, timestamp, data, logconf):
+    def pos_estimator_callback(self, timestamp, data, logconf):
         self.state.x = data["stateEstimate.x"] + self.initial_position.x
         self.state.y = data["stateEstimate.y"] + self.initial_position.y
         self.state.z = data["stateEstimate.z"] + self.initial_position.z
+
+    def vel_estimator_callback(self, timestamp, data, logconf):
+        self.state.vx = data["stateEstimate.vx"]
+        self.state.vy = data["stateEstimate.vy"]
+        self.state.vz = data["stateEstimate.vz"]
+
+    def attitude_estimator_callback(self, timestamp, data, logconf):
         self.state.roll = data["stabilizer.roll"]
         self.state.pitch = data["stabilizer.pitch"]
         self.state.yaw = data["stabilizer.yaw"]
 
     def setup_estimators(self):
-        pose_estimator = LogConfig(name="Pose", period_in_ms=10)
-        pose_estimator.add_variable("stateEstimate.x", "float")
-        pose_estimator.add_variable("stateEstimate.y", "float")
-        pose_estimator.add_variable("stateEstimate.z", "float")
-        pose_estimator.add_variable("stabilizer.roll", "float")
-        pose_estimator.add_variable("stabilizer.pitch", "float")
-        pose_estimator.add_variable("stabilizer.yaw", "float")
-        self.cf.log.add_config(pose_estimator)
-        pose_estimator.data_received_cb.add_callback(
-            self.pose_estimator_callback
-        )
-        pose_estimator.start()
-        self.estimators["pose"] = pose_estimator
+        pos_estimator = LogConfig(name="Position", period_in_ms=20)
+        pos_estimator.add_variable("stateEstimate.x", "float")
+        pos_estimator.add_variable("stateEstimate.y", "float")
+        pos_estimator.add_variable("stateEstimate.z", "float")
+        self.cf.log.add_config(pos_estimator)
+        self.estimators["pos"] = pos_estimator
+        pos_estimator.data_received_cb.add_callback(self.pos_estimator_callback)
+        pos_estimator.start()
+
+        vel_estimator = LogConfig(name="Velocity", period_in_ms=20)
+        vel_estimator.add_variable("stateEstimate.vx", "float")
+        vel_estimator.add_variable("stateEstimate.vy", "float")
+        vel_estimator.add_variable("stateEstimate.vz", "float")
+        self.cf.log.add_config(vel_estimator)
+        self.estimators["vel"] = vel_estimator
+        vel_estimator.data_received_cb.add_callback(self.vel_estimator_callback)
+        vel_estimator.start()
+
+        attitude_estimator = LogConfig(name="Attitude", period_in_ms=20)
+        attitude_estimator.add_variable("stabilizer.roll", "float")
+        attitude_estimator.add_variable("stabilizer.pitch", "float")
+        attitude_estimator.add_variable("stabilizer.yaw", "float")
+        self.cf.log.add_config(attitude_estimator)
+        self.estimators["attitude"] = attitude_estimator
+        attitude_estimator.data_received_cb.add_callback(self.attitude_estimator_callback)
+        attitude_estimator.start()
 
     # * Estimator Reset
     def reset_estimator(self):
@@ -358,7 +364,7 @@ class CrazyflieRobot:
         time.sleep(0.1)
         self.cf.param.set_value("kalman.resetEstimation", "0")
 
-        log_config = LogConfig(name="Kalman Variance", period_in_ms=500)
+        log_config = LogConfig(name="Kalman Variance", period_in_ms=20)
         log_config.add_variable("kalman.varPX", "float")
         log_config.add_variable("kalman.varPY", "float")
         log_config.add_variable("kalman.varPZ", "float")

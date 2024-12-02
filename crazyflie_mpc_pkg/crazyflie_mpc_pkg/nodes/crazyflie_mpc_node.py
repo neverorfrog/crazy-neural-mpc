@@ -9,12 +9,12 @@ from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
 from rclpy import executors
 from rclpy.impl.rcutils_logger import RcutilsLogger
-from std_msgs.msg import Empty
+from std_srvs.srv import Empty
 
 from crazyflie_mpc_pkg.mpc.mpc import ModelPredictiveController
 from crazyflie_mpc_pkg.mpc.quadrotor_model import QuadrotorSimplified
 from crazyflie_mpc_pkg.trajectories.circular_trajectory import CircularTrajectory
-from crazyflie_mpc_pkg.trajectories.trajectory import Trajectory
+from crazyflie_mpc_pkg.trajectories.trajectory import Trajectory, TrajectoryState
 from crazyflie_mpc_pkg.utils.configuration import MpcConfig
 from crazyflie_mpc_pkg.utils.definitions import FlightMode, MotorType
 from crazyflie_swarm_interfaces.msg import AttitudeSetpoint, CrazyflieState
@@ -44,9 +44,14 @@ class CrazyflieMPC(rclpy.node.Node):
         # Initialize stuff
         self.flight_mode: FlightMode = FlightMode.IDLE
         self.cmd_queue: Deque[np.ndarray] = None
-        self.t0 = self.get_clock().now()
         self.position = np.zeros(3)
         self.attitude = np.zeros(3)
+        self.velocity = np.zeros(3)
+
+        # Mpc specific stuff
+        self.is_flying = False
+        self.trajectory_changed = True
+        self.trajectory_t0 = self.get_clock().now()
 
         # * Subscriptions
         self.state_sub = self.create_subscription(
@@ -64,9 +69,10 @@ class CrazyflieMPC(rclpy.node.Node):
         self.create_timer(1.0 / 50.0, self._cmd_callback)
 
         # * Services (act on all active crazyflies)
-        self.takeoff_srv = self.create_service(TakeOff, f"/mpc_takeoff", self._takeoff_callback)
-        self.land_srv = self.create_service(Land, f"/mpc_land", self._land_callback)
-        # self.hover_srv = self.create_service(Empty, f"/mpc_hover", self._hover_callback)
+        self.takeoff_srv = self.create_service(TakeOff, "/mpc_takeoff", self._takeoff_callback)
+        self.land_srv = self.create_service(Land, "/mpc_land", self._land_callback)
+        self.hover_srv = self.create_service(Empty, "/mpc_hover", self._hover_callback)
+        self.trajectory_srv = self.create_service(Empty, "/mpc_traj", self._trajectory_callback)
 
         self.logger.info("Crazyflie MPC Node: %s" % node_name)
         self.logger.info("Initialization completed...\n\n")
@@ -79,28 +85,44 @@ class CrazyflieMPC(rclpy.node.Node):
         if self.flight_mode is FlightMode.IDLE:
             return
 
+        if not self.is_flying:
+            self.is_flying = True
+            cmd = np.array([0.0, 0.0, 0.0, 0.0])
+            self.cmd_attitude_setpoint(cmd)
+
         if not self.cmd_queue or len(self.cmd_queue) == 0:
             self.logger.warning("No control input available")
             return
 
-        cmd = self.cmd_queue.popleft()
+        self.cmd_attitude_setpoint(self.cmd_queue.popleft())
+
+    def cmd_attitude_setpoint(self, cmd):
+        assert len(cmd) == 4, "Control input must be of length 4"
+
         setpoint = AttitudeSetpoint()
         setpoint.roll = np.degrees(cmd[0])
         setpoint.pitch = np.degrees(cmd[1])
         setpoint.yaw_rate = 3.0 * (np.degrees(cmd[2]))  # TODO dunno why
         setpoint.thrust = self.thrust_to_pwm(cmd[3])  # TODO dunno why
+        self.logger.info(f"Attitude setpoint: {setpoint}")
         self.cmd_attitude_pub.publish(setpoint)
 
     def _mpc_callback(self):
         if self.flight_mode is FlightMode.IDLE:
             return
 
-        t = (self.get_clock().now() - self.t0).nanoseconds / 10.0**9
+        if self.trajectory_changed:
+            self.trajectory_start_position = self.position
+            self.trajectory_t0 = self.get_clock().now()
+            self.trajectory_changed = False
+
+        t = (self.get_clock().now() - self.trajectory_t0).nanoseconds / 10.0**9
+
         trajectory = self._reference_callback(t)  # updates and publishes the reference trajectory
         yref = trajectory[:, :-1]
         yref_e = trajectory[:, -1]
 
-        x0 = np.array([*self.position, *self.attitude, *self.velocity])
+        x0 = np.array([*self.position, *self.velocity, *self.attitude])
         x_mpc, u_mpc = self.mpc.solve(x0, yref, yref_e)
         self.cmd_queue = deque(
             u_mpc.T
@@ -115,6 +137,12 @@ class CrazyflieMPC(rclpy.node.Node):
                 np.radians(msg.euler_orientation[2]),
             ]
         )
+
+        if self.attitude[2] > np.pi:
+            self.attitude[2] -= 2 * np.pi
+        elif self.attitude[2] < -np.pi:
+            self.attitude[2] += 2 * np.pi
+
         self.velocity = np.array(
             [msg.linear_velocity[0], msg.linear_velocity[1], msg.linear_velocity[2]]
         )
@@ -124,8 +152,6 @@ class CrazyflieMPC(rclpy.node.Node):
             height = request.height
             self.takeoff_duration = request.duration
             self.flight_mode = FlightMode.TAKEOFF
-            self.takeoff_t0 = self.get_clock().now()
-            self.takeoff_pos0 = self.position
             self.takeoff_goal_pos = np.array([self.position[0], self.position[0], height])
             response.success = True
 
@@ -139,32 +165,37 @@ class CrazyflieMPC(rclpy.node.Node):
         try:
             self.land_duration = request.duration
             self.flight_mode = FlightMode.LANDING
-            self.land_t0 = self.get_clock().now()
-            self.land_pos0 = self.position
-            self.land_goal_pos = np.array([self.position[0], self.position[1], 0.01])
+            self.land_goal_pos = np.array([self.position[0], self.position[1], 0.0])
             response.success = True
 
         except Exception as e:
             self.logger.error(f"Error in land_callback: {e}")
             response.success = False
 
-    def _hover_callback(self, request, response):
+        return response
+
+    def _hover_callback(self, request: Empty.Request, response: Empty.Response):
         try:
             self.flight_mode = FlightMode.HOVER
-            self.hover_t0 = self.get_clock().now()
-            self.hover_pos0 = self.position
             self.hover_goal_pos = self.position
-            response.success = True
 
         except Exception as e:
             self.logger.error(f"Error in hover_callback: {e}")
-            response.success = False
+
+        return response
+
+    def _trajectory_callback(self, request: Empty.Request, response: Empty.Response):
+        try:
+            self.flight_mode = FlightMode.TRAJECTORY
+            self.trajectory_changed = True
+
+        except Exception as e:
+            self.logger.error(f"Error in trajectory_callback: {e}")
 
         return response
 
     def _reference_callback(self, t: float) -> np.ndarray:
         yref = self._compute_reference(t)
-        self.logger.info(f"Reference: {yref.shape}")
 
         ref_msg = Path()
         ref_msg.header.frame_id = "world"
@@ -203,9 +234,7 @@ class CrazyflieMPC(rclpy.node.Node):
             ]
             yref = np.array(
                 [
-                    np.array(
-                        [*(self.takeoff_pos0 + error * progress), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-                    )
+                    np.array([*(self.position + error * progress), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
                     for progress in progress_array
                 ]
             ).T
@@ -218,18 +247,36 @@ class CrazyflieMPC(rclpy.node.Node):
             ]
             yref = np.array(
                 [
-                    np.array([*(self.land_pos0 + error * progress), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+                    np.array([*(self.position + error * progress), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
                     for progress in progress_array
                 ]
             ).T
         if self.flight_mode is FlightMode.HOVER:
             yref = np.repeat(
                 np.array([[*self.hover_goal_pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T,
-                self.mpc.N,
+                self.mpc.N + 1,
                 axis=1,
             )
         if self.flight_mode is FlightMode.TRAJECTORY:
-            pass
+            yref = []
+            for t_mpc in t_mpc_array:
+                traj_state: TrajectoryState = self.reference.update(t_mpc)
+                yref.append(
+                    np.array(
+                        [
+                            traj_state.x,
+                            traj_state.y,
+                            traj_state.z,
+                            traj_state.dx,
+                            traj_state.dy,
+                            traj_state.dz,
+                            0.0,
+                            0.0,
+                            0.0,
+                        ]
+                    )
+                )
+            yref = np.array(yref).T
         return yref
 
     def thrust_to_pwm(self, collective_thrust: float) -> int:

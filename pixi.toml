@@ -8,23 +8,26 @@ version = "0.1.0"
 
 [tasks]
 
-# build stuff
+# Build Commands
 build-acados = "cd crazyflie_mpc_pkg/external/acados && mkdir -p build && cd build && cmake -DACADOS_WITH_QPOASES=ON -DACADOS_WITH_OSQP=ON .. && make -j8"
 build-firmware = "cd crazyflie_simulation_pkg/external/crazyflie-firmware && mkdir -p sitl_make/build && cd $_ && cmake .. && make all"
 build = "colcon build --symlink-install"
 clean = "rm -rf install log build"
 
-# commands to run stuff
+# Nodes
 flocking = "ros2 launch crazyflie_flocking_pkg flocking.launch.py"
-simmulti = "cd crazyflie_simulation_pkg/external/crazyflie-firmware && bash tools/crazyflie-simulation/simulator_files/gazebo/launch/sitl_multiagent_square.sh -n 4 -m crazyflie"
+sim-multi = "cd crazyflie_simulation_pkg/external/crazyflie-firmware && bash tools/crazyflie-simulation/simulator_files/gazebo/launch/sitl_multiagent_square.sh -n 4 -m crazyflie"
 sim = "cd crazyflie_simulation_pkg/external/crazyflie-firmware && bash tools/crazyflie-simulation/simulator_files/gazebo/launch/sitl_singleagent.sh -m crazyflie -x 0 -y 0"
 swarm = "ros2 launch crazyflie_swarm_pkg swarm.launch.py"
-mpc = "ros2 launch crazyflie_mpc_pkg mpc.launch.py"
-takeoff = 'ros2 service call /take_off crazyflie_swarm_interfaces/srv/TakeOff "{height: 0.3, duration: 2}"'
-mpc_takeoff = 'ros2 service call /mpc_takeoff crazyflie_swarm_interfaces/srv/TakeOff "{height: 2, duration: 10}"'
-mpc_land = 'ros2 service call /mpc_land crazyflie_swarm_interfaces/srv/Land "{duration: 3}"'
-land = 'ros2 service call /land crazyflie_swarm_interfaces/srv/Land "{duration: 3}"'
 teleop = 'ros2 launch crazyflie_swarm_pkg teleop.launch.py'
+mpc = "ros2 launch crazyflie_mpc_pkg mpc.launch.py"
+
+# Services
+takeoff = 'ros2 service call /take_off crazyflie_swarm_interfaces/srv/TakeOff "{height: 0.3, duration: 2}"'
+land = 'ros2 service call /land crazyflie_swarm_interfaces/srv/Land "{duration: 3}"'
+mpc-takeoff = 'ros2 service call /mpc_takeoff crazyflie_swarm_interfaces/srv/TakeOff "{height: 2, duration: 5}"'
+mpc-land = 'ros2 service call /mpc_land crazyflie_swarm_interfaces/srv/Land "{duration: 3}"'
+mpc-hover = 'ros2 service call /mpc_hover std_srvs/Empty "{}"'
 
 [pypi-dependencies]
 cflib = {path = "crazyflie_simulation_pkg/external/crazyflie-lib-python", editable = true}
