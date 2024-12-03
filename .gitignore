@@ -1,6 +1,9 @@
 .vscode
 rw_cache
 
+# testing stuff
+cache
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
