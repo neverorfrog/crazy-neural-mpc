@@ -5,7 +5,6 @@ import numpy as np
 import rclpy
 import rclpy.logging
 import rclpy.node
-import tf_transformations
 from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import Path
 from rclpy import executors
@@ -21,7 +20,6 @@ from crazyflie_mpc_pkg.utils.definitions import FlightMode, MotorType
 from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_interfaces.srv import Land, TakeOff
 from crazyflie_swarm_pkg.utils import load_config
-from crazyflie_interfaces.msg import LogDataGeneric, AttitudeSetpoint
 
 class CrazyflieMPC(rclpy.node.Node):
     def __init__(
@@ -57,10 +55,6 @@ class CrazyflieMPC(rclpy.node.Node):
 
         # * Subscriptions
         self.create_subscription(CrazyflieState, f"/{cf_name}/state", self._state_callback, 10)
-        self.create_subscription(PoseStamped, f"/{cf_name}/pose", self._pose_msg_callback, 10)
-        self.create_subscription(
-            LogDataGeneric, f"/{cf_name}/velocity", self._velocity_msg_callback, 10
-        )
 
         # * Publishers
         self.reference_pub = self.create_publisher(Path, f"/{cf_name}/reference", 10)
@@ -68,7 +62,7 @@ class CrazyflieMPC(rclpy.node.Node):
         self.create_timer(1.0 / 10.0, self._mpc_callback)
 
         self.cmd_attitude_pub = self.create_publisher(
-            AttitudeSetpoint, f"/{cf_name}/cmd_attitude_setpoint", 10
+            Twist, f"/{cf_name}/cmd_attitude_setpoint", 10
         )
         self.create_timer(1.0 / 50.0, self._cmd_callback)
 
@@ -101,21 +95,11 @@ class CrazyflieMPC(rclpy.node.Node):
 
     def cmd_attitude_setpoint(self, cmd):
         assert len(cmd) == 4, "Control input must be of length 4"
-
-        if self.cmd_attitude_pub.msg_type == AttitudeSetpoint:
-            setpoint = AttitudeSetpoint()
-            setpoint.roll = np.degrees(cmd[0])
-            setpoint.pitch = np.degrees(cmd[1])
-            setpoint.yaw_rate = np.degrees(cmd[2])  # TODO dunno why
-            setpoint.thrust = self.thrust_to_pwm(cmd[3])  # TODO dunno why
-            
-        if self.cmd_attitude_pub.msg_type == Twist:
-            setpoint = Twist()
-            setpoint.angular.x = np.degrees(cmd[0])
-            setpoint.angular.y = np.degrees(cmd[1])
-            setpoint.angular.z = np.degrees(cmd[2])
-            setpoint.linear.z = self.thrust_to_pwm(cmd[3]) * 1.0
-        
+        setpoint = Twist()
+        setpoint.angular.x = np.degrees(cmd[0])
+        setpoint.angular.y = np.degrees(cmd[1])
+        setpoint.angular.z = np.degrees(cmd[2])
+        setpoint.linear.z = self.thrust_to_pwm(cmd[3]) * 1.0
         self.logger.info(f"Attitude setpoint: {setpoint}")
         self.cmd_attitude_pub.publish(setpoint)
 
@@ -173,27 +157,6 @@ class CrazyflieMPC(rclpy.node.Node):
         self.velocity = np.array(
             [msg.linear_velocity[0], msg.linear_velocity[1], msg.linear_velocity[2]]
         )
-
-    def _pose_msg_callback(self, msg: PoseStamped):
-        self.logger.info(f"Received pose message \n")
-        self.position = [msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]
-        self.attitude = tf_transformations.euler_from_quaternion(
-            [
-                msg.pose.orientation.x,
-                msg.pose.orientation.y,
-                msg.pose.orientation.z,
-                msg.pose.orientation.w,
-            ]
-        )
-        # print(f'attitude: {np.degrees(self.attitude[2])}')
-        if self.attitude[2] > np.pi:
-            self.attitude[2] -= 2 * np.pi
-        elif self.attitude[2] < -np.pi:
-            self.attitude[2] += 2 * np.pi
-
-    def _velocity_msg_callback(self, msg: LogDataGeneric):
-        self.logger.info(f"Received velocity message \n")
-        self.velocity = msg.values
 
     def _takeoff_callback(self, request: TakeOff.Request, response: TakeOff.Response):
         try:

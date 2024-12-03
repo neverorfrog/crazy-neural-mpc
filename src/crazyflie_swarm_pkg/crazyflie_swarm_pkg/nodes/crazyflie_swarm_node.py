@@ -14,7 +14,6 @@ from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_interfaces.srv import Land, TakeOff
 from crazyflie_swarm_pkg.crazyflie import CrazyflieRobot
 from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
-from crazyflie_interfaces.msg import AttitudeSetpoint
 
 
 class CrazyflieSwarmNode(Node):
@@ -81,7 +80,7 @@ class CrazyflieSwarmNode(Node):
         self.attitude_subscribers: Dict[str, Subscription] = {}
         for name, _ in self.swarm.items():
             self.attitude_subscribers[name] = self.create_subscription(
-                AttitudeSetpoint,
+                Twist,
                 f"/{name}/cmd_attitude_setpoint",
                 lambda msg, name=name: self.attitude_callback(msg, name),
                 10,
@@ -139,7 +138,7 @@ class CrazyflieSwarmNode(Node):
         except Exception as e:
             self.get_logger().error(f"Error in led_callback: {e}")
 
-    def velocity_callback(self, msg, name: str) -> None:
+    def velocity_callback(self, msg: Twist, name: str) -> None:
         velocity_x = msg.linear.x
         velocity_y = msg.linear.y
         yaw_rate = msg.angular.z
@@ -154,11 +153,11 @@ class CrazyflieSwarmNode(Node):
         except Exception as e:
             self.get_logger().error(f"Error in velocity_callback: {e}")
 
-    def attitude_callback(self, msg: AttitudeSetpoint, name: str) -> None:
-        roll = msg.roll
-        pitch = msg.pitch
-        yaw_rate = msg.yaw_rate
-        thrust = msg.thrust
+    def attitude_callback(self, msg: Twist, name: str) -> None:
+        roll = msg.angular.x
+        pitch = msg.angular.y
+        yaw_rate = msg.angular.z
+        thrust = int(msg.linear.z)
 
         self.get_logger().info(
             f"Attitude command for {name}: {roll}, {pitch}, {yaw_rate}, {thrust}"

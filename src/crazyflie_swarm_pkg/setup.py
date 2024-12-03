@@ -33,6 +33,7 @@ setup(
         "console_scripts": [
             "crazyflie_swarm_exec = crazyflie_swarm_pkg.nodes.crazyflie_swarm_node:main",
             "crazyflie_teleop_exec = crazyflie_swarm_pkg.nodes.crazyflie_teleop_node:main",
+            "data_recorder_exec = crazyflie_swarm_pkg.nodes.data_recorder_node:main",
         ],
     },
 )

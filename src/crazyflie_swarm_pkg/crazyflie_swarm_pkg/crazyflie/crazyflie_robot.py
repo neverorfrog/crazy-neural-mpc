@@ -290,10 +290,6 @@ class CrazyflieRobot:
                 raise Exception("Flow deck not attached")
             if self.multiranger and not self.__multiranger_attached:
                 raise Exception("Multiranger not attached")
-        # if not self.is_flying:
-        # log(f"Not flying {self.name}", self.logger)
-        # return
-
         self.cf.commander.send_setpoint(roll, pitch, yaw_rate, thrust)
 
     # * Setters
