@@ -5,7 +5,8 @@ import numpy as np
 import rclpy
 import rclpy.logging
 import rclpy.node
-from geometry_msgs.msg import PoseStamped
+import tf_transformations
+from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import Path
 from rclpy import executors
 from rclpy.impl.rcutils_logger import RcutilsLogger
@@ -14,13 +15,13 @@ from std_srvs.srv import Empty
 from crazyflie_mpc_pkg.mpc.mpc import ModelPredictiveController
 from crazyflie_mpc_pkg.mpc.quadrotor_model import QuadrotorSimplified
 from crazyflie_mpc_pkg.trajectories.circular_trajectory import CircularTrajectory
-from crazyflie_mpc_pkg.trajectories.trajectory import Trajectory, TrajectoryState
+from crazyflie_mpc_pkg.trajectories.trajectory import Trajectory
 from crazyflie_mpc_pkg.utils.configuration import MpcConfig
 from crazyflie_mpc_pkg.utils.definitions import FlightMode, MotorType
-from crazyflie_swarm_interfaces.msg import AttitudeSetpoint, CrazyflieState
+from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_interfaces.srv import Land, TakeOff
 from crazyflie_swarm_pkg.utils import load_config
-
+from crazyflie_interfaces.msg import LogDataGeneric, AttitudeSetpoint
 
 class CrazyflieMPC(rclpy.node.Node):
     def __init__(
@@ -29,7 +30,7 @@ class CrazyflieMPC(rclpy.node.Node):
         mpc: ModelPredictiveController,
         quad: QuadrotorSimplified,
         reference: Trajectory,
-        to_plot: bool = False,
+        to_plot: bool = True,
     ):
         node_name = "mpc_" + cf_name
         super().__init__(node_name)
@@ -48,14 +49,17 @@ class CrazyflieMPC(rclpy.node.Node):
         self.attitude = np.zeros(3)
         self.velocity = np.zeros(3)
 
-        # Mpc specific stuff
+        # Phase specific stuff
         self.is_flying = False
-        self.trajectory_changed = True
-        self.trajectory_t0 = self.get_clock().now()
+        self.phase_changed = True
+        self.phase_t0 = self.get_clock().now()
+        self.phase_start_position = self.position
 
         # * Subscriptions
-        self.state_sub = self.create_subscription(
-            CrazyflieState, f"/{cf_name}/state", self._state_callback, 10
+        self.create_subscription(CrazyflieState, f"/{cf_name}/state", self._state_callback, 10)
+        self.create_subscription(PoseStamped, f"/{cf_name}/pose", self._pose_msg_callback, 10)
+        self.create_subscription(
+            LogDataGeneric, f"/{cf_name}/velocity", self._velocity_msg_callback, 10
         )
 
         # * Publishers
@@ -64,7 +68,7 @@ class CrazyflieMPC(rclpy.node.Node):
         self.create_timer(1.0 / 10.0, self._mpc_callback)
 
         self.cmd_attitude_pub = self.create_publisher(
-            AttitudeSetpoint, f"/{cf_name}/cmd_attitude", 10
+            AttitudeSetpoint, f"/{cf_name}/cmd_attitude_setpoint", 10
         )
         self.create_timer(1.0 / 50.0, self._cmd_callback)
 
@@ -87,8 +91,7 @@ class CrazyflieMPC(rclpy.node.Node):
 
         if not self.is_flying:
             self.is_flying = True
-            cmd = np.array([0.0, 0.0, 0.0, 0.0])
-            self.cmd_attitude_setpoint(cmd)
+            self.cmd_attitude_setpoint(np.array([0.0, 0.0, 0.0, 0.0]))
 
         if not self.cmd_queue or len(self.cmd_queue) == 0:
             self.logger.warning("No control input available")
@@ -99,11 +102,20 @@ class CrazyflieMPC(rclpy.node.Node):
     def cmd_attitude_setpoint(self, cmd):
         assert len(cmd) == 4, "Control input must be of length 4"
 
-        setpoint = AttitudeSetpoint()
-        setpoint.roll = np.degrees(cmd[0])
-        setpoint.pitch = np.degrees(cmd[1])
-        setpoint.yaw_rate = 3.0 * (np.degrees(cmd[2]))  # TODO dunno why
-        setpoint.thrust = self.thrust_to_pwm(cmd[3])  # TODO dunno why
+        if self.cmd_attitude_pub.msg_type == AttitudeSetpoint:
+            setpoint = AttitudeSetpoint()
+            setpoint.roll = np.degrees(cmd[0])
+            setpoint.pitch = np.degrees(cmd[1])
+            setpoint.yaw_rate = np.degrees(cmd[2])  # TODO dunno why
+            setpoint.thrust = self.thrust_to_pwm(cmd[3])  # TODO dunno why
+            
+        if self.cmd_attitude_pub.msg_type == Twist:
+            setpoint = Twist()
+            setpoint.angular.x = np.degrees(cmd[0])
+            setpoint.angular.y = np.degrees(cmd[1])
+            setpoint.angular.z = np.degrees(cmd[2])
+            setpoint.linear.z = self.thrust_to_pwm(cmd[3]) * 1.0
+        
         self.logger.info(f"Attitude setpoint: {setpoint}")
         self.cmd_attitude_pub.publish(setpoint)
 
@@ -111,16 +123,16 @@ class CrazyflieMPC(rclpy.node.Node):
         if self.flight_mode is FlightMode.IDLE:
             return
 
-        if self.trajectory_changed:
-            self.trajectory_start_position = self.position
-            self.trajectory_t0 = self.get_clock().now()
-            self.trajectory_changed = False
+        if self.phase_changed:
+            self.phase_start_position = self.position
+            self.phase_t0 = self.get_clock().now()
+            self.phase_changed = False
 
-        t = (self.get_clock().now() - self.trajectory_t0).nanoseconds / 10.0**9
+        t = (self.get_clock().now() - self.phase_t0).nanoseconds / 10.0**9
 
-        trajectory = self._reference_callback(t)  # updates and publishes the reference trajectory
-        yref = trajectory[:, :-1]
-        yref_e = trajectory[:, -1]
+        ref_traj = self._reference_callback(t)  # updates and publishes the reference trajectory
+        yref = ref_traj[:, :-1]
+        yref_e = ref_traj[:, -1]
 
         x0 = np.array([*self.position, *self.velocity, *self.attitude])
         x_mpc, u_mpc = self.mpc.solve(x0, yref, yref_e)
@@ -128,7 +140,22 @@ class CrazyflieMPC(rclpy.node.Node):
             u_mpc.T
         )  # store the control inputs in a deque (it is important to have the control inputs per rows)
 
+        if self.to_plot:
+            mpc_msg = Path()
+            mpc_msg.header.frame_id = "world"
+            mpc_msg.header.stamp = self.get_clock().now().to_msg()
+
+            for i in range(self.mpc.N):
+                mpc_pose = PoseStamped()
+                mpc_pose.pose.position.x = x_mpc[0, i]
+                mpc_pose.pose.position.y = x_mpc[1, i]
+                mpc_pose.pose.position.z = x_mpc[2, i]
+                mpc_msg.poses.append(mpc_pose)
+
+            self.mpc_pub.publish
+
     def _state_callback(self, msg: CrazyflieState):
+        self.logger.info(f"Received state message \n")
         self.position = np.array([msg.position[0], msg.position[1], msg.position[2]])
         self.attitude = np.array(
             [
@@ -146,6 +173,27 @@ class CrazyflieMPC(rclpy.node.Node):
         self.velocity = np.array(
             [msg.linear_velocity[0], msg.linear_velocity[1], msg.linear_velocity[2]]
         )
+
+    def _pose_msg_callback(self, msg: PoseStamped):
+        self.logger.info(f"Received pose message \n")
+        self.position = [msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]
+        self.attitude = tf_transformations.euler_from_quaternion(
+            [
+                msg.pose.orientation.x,
+                msg.pose.orientation.y,
+                msg.pose.orientation.z,
+                msg.pose.orientation.w,
+            ]
+        )
+        # print(f'attitude: {np.degrees(self.attitude[2])}')
+        if self.attitude[2] > np.pi:
+            self.attitude[2] -= 2 * np.pi
+        elif self.attitude[2] < -np.pi:
+            self.attitude[2] += 2 * np.pi
+
+    def _velocity_msg_callback(self, msg: LogDataGeneric):
+        self.logger.info(f"Received velocity message \n")
+        self.velocity = msg.values
 
     def _takeoff_callback(self, request: TakeOff.Request, response: TakeOff.Response):
         try:
@@ -187,7 +235,7 @@ class CrazyflieMPC(rclpy.node.Node):
     def _trajectory_callback(self, request: Empty.Request, response: Empty.Response):
         try:
             self.flight_mode = FlightMode.TRAJECTORY
-            self.trajectory_changed = True
+            self.phase_changed = True
 
         except Exception as e:
             self.logger.error(f"Error in trajectory_callback: {e}")
@@ -197,18 +245,20 @@ class CrazyflieMPC(rclpy.node.Node):
     def _reference_callback(self, t: float) -> np.ndarray:
         yref = self._compute_reference(t)
 
-        ref_msg = Path()
-        ref_msg.header.frame_id = "world"
-        ref_msg.header.stamp = self.get_clock().now().to_msg()
+        if self.to_plot:
+            ref_msg = Path()
+            ref_msg.header.frame_id = "world"
+            ref_msg.header.stamp = self.get_clock().now().to_msg()
 
-        for i in range(self.mpc.N):
-            ref_pose = PoseStamped()
-            ref_pose.pose.position.x = yref[0, i]
-            ref_pose.pose.position.y = yref[1, 0]
-            ref_pose.pose.position.z = yref[2, i]
-            ref_msg.poses.append(ref_pose)
+            for i in range(self.mpc.N):
+                ref_pose = PoseStamped()
+                ref_pose.pose.position.x = yref[0, i]
+                ref_pose.pose.position.y = yref[1, i]
+                ref_pose.pose.position.z = yref[2, i]
+                ref_msg.poses.append(ref_pose)
 
-        self.reference_pub.publish(ref_msg)
+            self.reference_pub.publish(ref_msg)
+
         return yref
 
     def _compute_reference(self, t: float) -> np.ndarray:
@@ -258,25 +308,7 @@ class CrazyflieMPC(rclpy.node.Node):
                 axis=1,
             )
         if self.flight_mode is FlightMode.TRAJECTORY:
-            yref = []
-            for t_mpc in t_mpc_array:
-                traj_state: TrajectoryState = self.reference.update(t_mpc)
-                yref.append(
-                    np.array(
-                        [
-                            traj_state.x,
-                            traj_state.y,
-                            traj_state.z,
-                            traj_state.dx,
-                            traj_state.dy,
-                            traj_state.dz,
-                            0.0,
-                            0.0,
-                            0.0,
-                        ]
-                    )
-                )
-            yref = np.array(yref).T
+            yref = np.array([self.trajectory_function(t_mpc) for t_mpc in t_mpc_array]).T
         return yref
 
     def thrust_to_pwm(self, collective_thrust: float) -> int:
@@ -302,6 +334,17 @@ class CrazyflieMPC(rclpy.node.Node):
                 )
             )
 
+    def trajectory_function(self, t):
+        a = 1.0
+        b = 0.5 * np.tanh(0.1 * t)
+        pxr = self.phase_start_position[0] + a * np.sin(b * t)
+        pyr = self.phase_start_position[1] + a * np.sin(b * t) * np.cos(b * t)
+        pzr = self.phase_start_position[2]
+        vxr = a * b * np.cos(b * t)
+        vyr = a * b * np.cos(2 * b * t)
+        vzr = 0.0
+        return np.array([pxr, pyr, pzr, vxr, vyr, vzr, 0.0, 0.0, 0.0])
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -321,7 +364,7 @@ def main(args=None):
     rclpy.logging.get_logger("main").info("Reference trajectory initalized...")
 
     nodes = [
-        CrazyflieMPC("cf" + str(i), mpc, quadmodel, reference) for i in np.arange(1, 1 + N_AGENTS)
+        CrazyflieMPC("cf_" + str(i), mpc, quadmodel, reference) for i in np.arange(1, 1 + N_AGENTS)
     ]
     executor = executors.MultiThreadedExecutor()
     for node in nodes:

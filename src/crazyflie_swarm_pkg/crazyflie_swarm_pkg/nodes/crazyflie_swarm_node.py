@@ -10,10 +10,11 @@ from rclpy.node import Node, Publisher, Subscription
 from std_msgs.msg import Float32
 from tf2_ros import TransformBroadcaster
 
-from crazyflie_swarm_interfaces.msg import AttitudeSetpoint, CrazyflieState
+from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_interfaces.srv import Land, TakeOff
 from crazyflie_swarm_pkg.crazyflie import CrazyflieRobot
 from crazyflie_swarm_pkg.utils import SwarmConfig, load_config
+from crazyflie_interfaces.msg import AttitudeSetpoint
 
 
 class CrazyflieSwarmNode(Node):
@@ -81,7 +82,7 @@ class CrazyflieSwarmNode(Node):
         for name, _ in self.swarm.items():
             self.attitude_subscribers[name] = self.create_subscription(
                 AttitudeSetpoint,
-                f"/{name}/cmd_attitude",
+                f"/{name}/cmd_attitude_setpoint",
                 lambda msg, name=name: self.attitude_callback(msg, name),
                 10,
             )

@@ -21,13 +21,15 @@ sim = "cd external/crazyflie-firmware && bash tools/crazyflie-simulation/simulat
 swarm = "ros2 launch crazyflie_swarm_pkg swarm.launch.py"
 teleop = 'ros2 launch crazyflie_swarm_pkg teleop.launch.py'
 mpc = "ros2 launch crazyflie_mpc_pkg mpc.launch.py"
+crazyswarm = "ros2 launch crazyflie launch.py backend:=cflib"
 
 # Services
 takeoff = 'ros2 service call /take_off crazyflie_swarm_interfaces/srv/TakeOff "{height: 0.3, duration: 2}"'
 land = 'ros2 service call /land crazyflie_swarm_interfaces/srv/Land "{duration: 3}"'
-mpc-takeoff = 'ros2 service call /mpc_takeoff crazyflie_swarm_interfaces/srv/TakeOff "{height: 2, duration: 5}"'
+mpc-takeoff = 'ros2 service call /mpc_takeoff crazyflie_swarm_interfaces/srv/TakeOff "{height: 1, duration: 5}"'
 mpc-land = 'ros2 service call /mpc_land crazyflie_swarm_interfaces/srv/Land "{duration: 3}"'
 mpc-hover = 'ros2 service call /mpc_hover std_srvs/Empty "{}"'
+mpc-traj = 'ros2 service call /mpc_traj std_srvs/Empty "{}"'
 
 [pypi-dependencies]
 cflib = {path = "external/crazyflie-lib-python", editable = true}

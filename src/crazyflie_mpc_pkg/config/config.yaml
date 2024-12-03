@@ -34,8 +34,8 @@ input_constraints:
   roll_max: 0.25
   pitch_min: -0.25
   pitch_max: 0.25
-  yaw_min: -0.1
-  yaw_max: 0.1
+  yaw_min: -0.15
+  yaw_max: 0.15
   thrust_min: 0.0
   thrust_max: 0.5
 

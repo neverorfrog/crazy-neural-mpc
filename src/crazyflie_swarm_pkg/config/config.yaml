@@ -1,9 +1,9 @@
-state_publisher_rate: 50.0
+state_publisher_rate: 100.0
 velocity_publisher_rate: 10.0
 simulation: True
 
 crazyflies:
-  - name: cf1
+  - name: cf_1
     active: True
     uri: radio://0/80/2M/E7E7E7E7E6
     sim_uri: udp://0.0.0.0:19850
@@ -15,7 +15,7 @@ crazyflies:
       y: 0.0
       z: 0.0
 
-  - name: cf2
+  - name: cf_2
     active: False
     uri: radio://0/80/2M/E7E7E7E7E7
     sim_uri: udp://0.0.0.0:19851
@@ -27,7 +27,7 @@ crazyflies:
       y: 0.0
       z: 0.0
 
-  - name: cf3
+  - name: cf_3
     active: False
     uri: radio://0/80/2M/E7E7E7E7E8
     sim_uri: udp://0.0.0.0:19852
@@ -39,7 +39,7 @@ crazyflies:
       y: 1.0
       z: 0.0
 
-  - name: cf4
+  - name: cf_4
     active: False
     uri: radio://0/80/2M/E7E7E7E7E9
     sim_uri: udp://0.0.0.0:19853
