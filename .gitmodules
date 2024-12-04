@@ -9,3 +9,7 @@
 [submodule "external/acados"]
 	path = external/acados
 	url = https://github.com/acados/acados.git
+[submodule "external/crazyflie-clients-python"]
+	path = external/crazyflie-clients-python
+	url = https://github.com/llanesc/crazyflie-clients-python
+	branch = sitl-release
