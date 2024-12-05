@@ -237,7 +237,7 @@ class CrazyflieSwarmNode(Node):
             self.get_logger().error(f"Error in state_callback: {e}")
 
     # * Services Callbacks
-    def take_off_service_callback(self, request, response):
+    def take_off_service_callback(self, request: TakeOff.Request, response: TakeOff.Response):
         try:
             height = request.height
             duration = request.duration
@@ -252,7 +252,7 @@ class CrazyflieSwarmNode(Node):
 
         return response
 
-    def land_service_callback(self, request, response):
+    def land_service_callback(self, request: Land.Request, response: Land.Response):
         try:
             self.get_logger().info(f"Land at 0m for {request.duration}s")
             duration = request.duration

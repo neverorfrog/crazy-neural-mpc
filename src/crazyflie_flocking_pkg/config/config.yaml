@@ -1,5 +1,5 @@
 dimensions:
-  d_eq: 1        # Equilibrium distance [m]
+  d_eq: 2        # Equilibrium distance [m]
   radius: 0.2      # Radius of the robots [m]
   max_vis_objs: 2  # Max distance of visibility [m]
 

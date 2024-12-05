@@ -36,16 +36,8 @@ def generate_launch_description():
             }
         ],
     )
-    
-    recorder = Node(
-        package="crazyflie_swarm_pkg",
-        name="data_recorder_node",
-        executable="data_recorder_exec",
-        parameters=[{"swarm_config_path": os.path.join(root, "config/config.yaml")}],
-    )
 
     ld.add_action(swarm)
     ld.add_action(rviz)
-    # ld.add_action(recorder)
 
     return ld

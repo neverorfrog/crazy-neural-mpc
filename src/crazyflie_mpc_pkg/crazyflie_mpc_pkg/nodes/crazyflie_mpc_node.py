@@ -21,6 +21,7 @@ from crazyflie_swarm_interfaces.msg import CrazyflieState
 from crazyflie_swarm_interfaces.srv import Land, TakeOff
 from crazyflie_swarm_pkg.utils import load_config
 
+
 class CrazyflieMPC(rclpy.node.Node):
     def __init__(
         self,
@@ -64,13 +65,14 @@ class CrazyflieMPC(rclpy.node.Node):
         self.cmd_attitude_pub = self.create_publisher(
             Twist, f"/{cf_name}/cmd_attitude_setpoint", 10
         )
-        self.create_timer(1.0 / 50.0, self._cmd_callback)
+        self.create_timer(1.0 / 100.0, self._cmd_callback)
 
         # * Services (act on all active crazyflies)
         self.takeoff_srv = self.create_service(TakeOff, "/mpc_takeoff", self._takeoff_callback)
         self.land_srv = self.create_service(Land, "/mpc_land", self._land_callback)
         self.hover_srv = self.create_service(Empty, "/mpc_hover", self._hover_callback)
         self.trajectory_srv = self.create_service(Empty, "/mpc_traj", self._trajectory_callback)
+        self.emergency_land_srv = self.create_service(Empty, "/land", self._emergency_land_callback)
 
         self.logger.info("Crazyflie MPC Node: %s" % node_name)
         self.logger.info("Initialization completed...\n\n")
@@ -139,7 +141,7 @@ class CrazyflieMPC(rclpy.node.Node):
             self.mpc_pub.publish
 
     def _state_callback(self, msg: CrazyflieState):
-        self.logger.info(f"Received state message \n")
+        self.logger.info("Received state message \n")
         self.position = np.array([msg.position[0], msg.position[1], msg.position[2]])
         self.attitude = np.array(
             [
@@ -194,6 +196,12 @@ class CrazyflieMPC(rclpy.node.Node):
             self.logger.error(f"Error in hover_callback: {e}")
 
         return response
+
+    def _emergency_land_callback(self, request: Empty.Request, response: Empty.Response):
+        try:
+            self.flight_mode = FlightMode.IDLE
+        except Exception as e:
+            self.logger.error(f"Error in emergency_callback: {e}")
 
     def _trajectory_callback(self, request: Empty.Request, response: Empty.Response):
         try:

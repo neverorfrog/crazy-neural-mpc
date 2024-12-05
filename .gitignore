@@ -15,6 +15,7 @@ log
 rw_cache
 acados_generated_files/
 c_generated_code/
+crazy_bag
 
 # C extensions
 *.so

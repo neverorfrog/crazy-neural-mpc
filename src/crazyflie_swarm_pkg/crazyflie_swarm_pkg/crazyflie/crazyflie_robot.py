@@ -255,7 +255,7 @@ class CrazyflieRobot:
         if duration is None:
             duration = self.default_take_off_duration
         self.logger.info(f"Taking off {self.name} to {absolute_height} m in {duration} s")
-        self.cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, 1.0)
+        self.cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, absolute_height)
 
     def land(self, duration=None):
         if not self.is_flying:
