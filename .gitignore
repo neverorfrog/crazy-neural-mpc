@@ -1,6 +1,9 @@
 .vscode
 rw_cache
 
+# testing stuff
+cache
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -10,6 +13,9 @@ build
 install
 log
 rw_cache
+acados_generated_files/
+c_generated_code/
+crazy_bag
 
 # C extensions
 *.so
@@ -168,3 +174,7 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# pixi environments
+.pixi
+*.egg-info
