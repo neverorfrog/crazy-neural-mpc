@@ -33,6 +33,8 @@ class BoundsConfig:
 
 @dataclass
 class AgentConfig:
+    is_omnidirectional: bool = MISSING
+    is_influenced: bool = MISSING
     num_options: int = MISSING
     k: float = MISSING
     h: float = MISSING
