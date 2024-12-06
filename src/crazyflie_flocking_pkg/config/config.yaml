@@ -21,6 +21,8 @@ bounds:
   angle_offset_max: 30  # in degrees
   
 agent:
+  is_omnidirectional: false
+  is_influenced: true
   num_options: 4
   k: 0.6
   h: 0.2

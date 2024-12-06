@@ -81,8 +81,14 @@ class CrazyflieFlockingNode(Node):  # type: ignore
         velocities computed by the flocking algorithm and sends them to the dock
         node.
         """
+        # Get the state of the neighbors
+        neighbors = self.swarm_state.copy()
+        neighbors.pop(name)  # remove myself from neighbors
+        neighbor_agents = self.agents.copy()
+        neighbor_agents.pop(name)  # remove myself from neighbors
+        
         v, yaw_rate = self.agents[name].compute_velocities(
-            self.swarm_state, is_omnidirectional=False
+            self.swarm_state[name], neighbors, neighbor_agents
         )
         cmd_vel = Twist()
         cmd_vel.linear.x = v[0]

@@ -19,6 +19,14 @@ class ObstacleType(Enum):
     floor = 2
 
 
+class Option(Enum):
+    uncommitted = -1
+    right = 0
+    front = 1
+    left = 2
+    back = 3
+
+
 class Obstacle:
     def __init__(
         self,
