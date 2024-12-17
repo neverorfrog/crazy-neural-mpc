@@ -2,7 +2,7 @@ import random
 from typing import Dict, List
 
 import numpy as np
-from crazyflie_flocking_pkg.crazyflie_flocking_pkg.utils.geometry import point_line_distance
+from crazyflie_flocking_pkg.utils.geometry import point_line_distance
 from rclpy.impl.rcutils_logger import RcutilsLogger
 
 from crazyflie_flocking_pkg.flocking_forces import ForcesGenerator
@@ -24,7 +24,6 @@ class Agent:
         self.name = name
         self.decision_counter = 0
         self.decision_cycle = 10 # TODO: make this a parameter
-        self.v_mig = np.array([0, 0, 0])
         self.option = Option.uncommitted
 
     def compute_velocities(
@@ -42,7 +41,7 @@ class Agent:
         
         # TODO: CONFIG
         v_mig = np.array([0.0, 0.0, 0.0])
-        target = np.array([1.0, 0.0, state.z])
+        target = np.array([5.0, 0.0, state.z])
         
         if self.config.agent.is_influenced:
             self.decision_counter += 1
@@ -245,7 +244,7 @@ class Agent:
         p = random.uniform(0, 1)
         
         if self.option == Option.uncommitted:
-            option = random.randint(1, self.config.agent.num_options)
+            option = Option.right
             v_gamma = self.get_option_value(option, state, obstacles, target)
             P_gamma = v_gamma * self.config.agent.k
             

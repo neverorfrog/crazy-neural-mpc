@@ -279,7 +279,7 @@ class CrazyflieMPC(rclpy.node.Node):
                 axis=1,
             )
         if self.flight_mode is FlightMode.TRAJECTORY:
-            yref = np.array([self.trajectory_function(t_mpc) for t_mpc in t_mpc_array]).T
+            yref = np.array([self.vertical_circle(t_mpc) for t_mpc in t_mpc_array]).T
         return yref
 
     def thrust_to_pwm(self, collective_thrust: float) -> int:
@@ -305,15 +305,37 @@ class CrazyflieMPC(rclpy.node.Node):
                 )
             )
 
-    def trajectory_function(self, t):
-        a = 1.0
-        b = 0.5 * np.tanh(0.1 * t)
+    def lemniscate(self, t):
+        a = 0.8
+        b = 0.4 * np.tanh(0.1 * t)
         pxr = self.phase_start_position[0] + a * np.sin(b * t)
         pyr = self.phase_start_position[1] + a * np.sin(b * t) * np.cos(b * t)
         pzr = self.phase_start_position[2]
         vxr = a * b * np.cos(b * t)
         vyr = a * b * np.cos(2 * b * t)
         vzr = 0.0
+        return np.array([pxr, pyr, pzr, vxr, vyr, vzr, 0.0, 0.0, 0.0])
+    
+    def circle(self, t):
+        a = 1.0
+        omega = 0.75*np.tanh(0.1*t)
+        pxr = self.phase_start_position[0] + a*np.cos(omega*t) - a
+        pyr = self.phase_start_position[1] + a*np.sin(omega*t)
+        pzr = self.phase_start_position[2]
+        vxr = -a*omega*np.sin(omega*t)
+        vyr = a*omega*np.cos(omega*t)
+        vzr = 0.0
+        return np.array([pxr, pyr, pzr, vxr, vyr, vzr, 0.0, 0.0, 0.0])
+    
+    def vertical_circle(self, t):
+        a = 1.0
+        omega = 0.75*np.tanh(0.1*t)
+        pxr = self.phase_start_position[0] + a*np.sin(-omega*t + np.pi)
+        pyr = self.phase_start_position[1]
+        pzr = self.phase_start_position[2] + a*np.cos(-omega*t + np.pi) + a
+        vxr = -a*omega*np.cos(-omega*t + np.pi)
+        vyr = 0.0
+        vzr = a*omega*np.sin(-omega*t + np.pi)
         return np.array([pxr, pyr, pzr, vxr, vyr, vzr, 0.0, 0.0, 0.0])
 
 

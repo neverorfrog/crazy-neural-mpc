@@ -22,8 +22,6 @@ class CrazyflieRobot:
         logger=None,
         multiranger=False,
         initial_position=None,
-        default_take_off_height=0.2,
-        default_take_off_duration=3,
         is_simulated=True,
     ):
         self.uri = uri
@@ -32,13 +30,9 @@ class CrazyflieRobot:
         self.scf = SyncCrazyflie(self.uri, cf=self.cf)
         self.logger = logger
         self.is_simulated = is_simulated
-
-        self.default_take_off_height = default_take_off_height
-        self.default_take_off_duration = default_take_off_duration
-        self.default_land_duration = 3
-        self.default_height = 0.2
-        self.default_velocity = 0.1
-        self.emergency_stop_distance = 0.3  # TODO: put in config
+        
+        self.hovering_height = 0.3
+        self.emergency_stop_distance = 0.1  # TODO: put in config
 
         # State
         self.initial_position = initial_position
@@ -80,6 +74,7 @@ class CrazyflieRobot:
         self.__mean_buffer[RangeDirection.LEFT] = 0.0
         self.__mean_buffer[RangeDirection.UP] = 0.0
 
+        self.flight_mode = "idle"
         self.take_off_done = False
         self.is_flying = False
 
@@ -194,7 +189,9 @@ class CrazyflieRobot:
 
     # * Update
     def update(self):
-
+        if self.flight_mode == "idle":
+            return
+        
         # * Multirange values (filled only if above a certain height)
         if self.state.z > 0.1:
             self.__buffer[RangeDirection.FRONT].append(self.multiranger_sensor.front)
@@ -218,14 +215,21 @@ class CrazyflieRobot:
 
         # * Handle take off and land
         z = self.state.z
-        if not self.take_off_done and z >= self.default_take_off_height - 0.05:
+        if self.flight_mode == "take_off" and self.state.z < self.hovering_height - 0.05:
+            self.cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, self.hovering_height)
+            self.is_flying = True
+        elif self.flight_mode is not "flying" and self.state.z >= self.hovering_height - 0.05:
             log(f"Take off done for Crazyflie {self.name}", self.logger)
             self.take_off_done = True
             self.is_flying = True
-
+            self.flight_mode = "flying"
+            
+        if self.flight_mode == "land":
+            self.cf.commander.send_velocity_world_setpoint(0, 0, -0.05, 0)
         if self.take_off_done and z <= 0.05:
             log(f"Land done for Crazyflie {self.name}", self.logger)
             self.cf.commander.send_stop_setpoint()
+            self.flight_mode = "idle"
             self.is_flying = False
             self.take_off_done = False
 
@@ -244,27 +248,24 @@ class CrazyflieRobot:
     def take_off(self, absolute_height=None, duration=None):
         if not self.__connection_opened:
             raise Exception("Connection not opened")
+        if absolute_height is None:
+            raise Exception("Absolute height not provided")
         if not self.is_simulated:
             if not self.__flow_deck_attached:
                 raise Exception("Flow deck not attached")
             if self.multiranger and not self.__multiranger_attached:
                 raise Exception("Multiranger not attached")
 
-        if absolute_height is None:
-            absolute_height = self.default_take_off_height
-        if duration is None:
-            duration = self.default_take_off_duration
-        self.logger.info(f"Taking off {self.name} to {absolute_height} m in {duration} s")
-        self.cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, absolute_height)
+        self.hovering_height = absolute_height + 0.1
+        self.logger.info(f"Taking off {self.name} to {absolute_height} m")
+        self.flight_mode = "take_off"
 
     def land(self, duration=None):
         if not self.is_flying:
             log(f"Not flying {self.name}", self.logger)
             return
         self.is_flying = False
-        if duration is None:
-            duration = self.default_land_duration
-        self.cf.commander.send_velocity_world_setpoint(0, 0, -0.05, 0)
+        self.flight_mode = "land"
 
     def emergency_stop(self):
         self.cf.commander.send_stop_setpoint()
@@ -277,10 +278,10 @@ class CrazyflieRobot:
                 raise Exception("Flow deck not attached")
             if self.multiranger and not self.__multiranger_attached:
                 raise Exception("Multiranger not attached")
-        if not self.is_flying:
+        if not self.take_off_done:
             log(f"Not flying {self.name}", self.logger)
             return
-        self.cf.commander.send_hover_setpoint(vx, vy, yaw_rate, self.default_take_off_height)
+        self.cf.commander.send_hover_setpoint(vx, vy, yaw_rate, self.hovering_height)
 
     def set_attitude(self, roll, pitch, yaw_rate, thrust):
         if not self.__connection_opened:

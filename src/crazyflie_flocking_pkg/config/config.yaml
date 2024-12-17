@@ -1,5 +1,5 @@
 dimensions:
-  d_eq: 2        # Equilibrium distance [m]
+  d_eq: 0.5        # Equilibrium distance [m]
   radius: 0.2      # Radius of the robots [m]
   max_vis_objs: 2  # Max distance of visibility [m]
 
@@ -9,7 +9,7 @@ gains:
   k_m: 0.8      # Migration force gain
   k_al: 1       # Alignment force gain 
   k_l: 0.05     # Linear Velocity gain
-  k_a: 5.0     # Angular Velocity gain
+  k_a: 5.0      # Angular Velocity gain
 
 bounds:
   v_min: 0
@@ -22,7 +22,7 @@ bounds:
   
 agent:
   is_omnidirectional: false
-  is_influenced: true
+  is_influenced: false
   num_options: 4
   k: 0.6
   h: 0.2

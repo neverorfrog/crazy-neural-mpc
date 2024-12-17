@@ -40,8 +40,6 @@ class CrazyflieSwarmNode(Node):
             name = crazyflie_config.name
             multiranger = crazyflie_config.multiranger
             initial_position = crazyflie_config.initial_position
-            height = crazyflie_config.takeoff_height
-            duration = crazyflie_config.takeoff_duration
             crazyflie_robot = CrazyflieRobot(
                 uri=uri,
                 name=name,
@@ -50,8 +48,6 @@ class CrazyflieSwarmNode(Node):
                 logger=self.get_logger(),
                 multiranger=multiranger,
                 initial_position=initial_position,
-                default_take_off_height=height,
-                default_take_off_duration=duration,
                 is_simulated=self.config.simulation,
             )
             self.swarm[name] = crazyflie_robot
@@ -112,7 +108,7 @@ class CrazyflieSwarmNode(Node):
 
         # * Timers
         for name, _ in self.swarm.items():
-            self.create_timer(0.1, lambda name=name: self.update_robot(name))
+            self.create_timer(0.01, lambda name=name: self.update_robot(name))
 
     def _get_config(self) -> SwarmConfig:
         self.declare_parameter("swarm_config_path", "")
