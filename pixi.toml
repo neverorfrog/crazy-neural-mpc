@@ -21,6 +21,7 @@ sim = "cd external/crazyflie-firmware && bash tools/crazyflie-simulation/simulat
 swarm = "ros2 launch crazyflie_swarm_pkg swarm.launch.py"
 teleop = 'ros2 launch crazyflie_swarm_pkg teleop.launch.py'
 mpc = "ros2 launch crazyflie_mpc_pkg mpc.launch.py"
+data = "ros2 launch crazyflie_mpc_pkg data.launch.py"
 crazyswarm = "ros2 launch crazyflie launch.py backend:=cflib"
 record = "cd crazy_bag && ros2 bag record --all"
 

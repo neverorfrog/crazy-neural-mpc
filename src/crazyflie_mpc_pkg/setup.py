@@ -21,6 +21,9 @@ setup(
             glob("launch/*launch.[pxy][yma]*"),
         ),
         (os.path.join("share", package_name, "config"), glob("config/*.yaml")),
+        (os.path.join("share", package_name, "bags/horizontal_circle"), glob("bags/horizontal_circle/*")),
+        (os.path.join("share", package_name, "bags/vertical_circle"), glob("bags/vertical_circle/*")),
+        (os.path.join("share", package_name, "bags/lemniscate"), glob("bags/lemniscate/*")),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
@@ -32,6 +35,7 @@ setup(
     entry_points={
         "console_scripts": [
             "crazyflie_mpc_exec = crazyflie_mpc_pkg.nodes.crazyflie_mpc_node:main",
+            "dataset_creation_exec = crazyflie_mpc_pkg.nodes.dataset_creation_node:main",
         ],
     },
 )
