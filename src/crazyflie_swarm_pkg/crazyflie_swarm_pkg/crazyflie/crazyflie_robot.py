@@ -30,6 +30,7 @@ class CrazyflieRobot:
         self.scf = SyncCrazyflie(self.uri, cf=self.cf)
         self.logger = logger
         self.is_simulated = is_simulated
+        self.state_update_dt = 10 # ms
         
         self.hovering_height = 0.3
         self.emergency_stop_distance = 0.1  # TODO: put in config
@@ -302,7 +303,8 @@ class CrazyflieRobot:
 
     # * Getters
     def get_state(self) -> CrazyState:
-        self.get_multiranger_data()
+        if not self.is_simulated:
+            self.get_multiranger_data()
         return self.state
 
     def get_multiranger_data(self):
@@ -313,9 +315,9 @@ class CrazyflieRobot:
         self.state.mr_up = self.__mean_buffer[RangeDirection.UP]
 
     def pos_estimator_callback(self, timestamp, data, logconf):
-        self.state.x = data["stateEstimate.x"] + self.initial_position.x
-        self.state.y = data["stateEstimate.y"] + self.initial_position.y
-        self.state.z = data["stateEstimate.z"] + self.initial_position.z
+        self.state.x = data["stateEstimate.x"]
+        self.state.y = data["stateEstimate.y"]
+        self.state.z = data["stateEstimate.z"]
 
     def vel_estimator_callback(self, timestamp, data, logconf):
         self.state.vx = data["stateEstimate.vx"]
@@ -328,7 +330,7 @@ class CrazyflieRobot:
         self.state.yaw = data["stabilizer.yaw"]
 
     def setup_estimators(self):
-        pos_estimator = LogConfig(name="Position", period_in_ms=20)
+        pos_estimator = LogConfig(name="Position", period_in_ms=self.state_update_dt)
         pos_estimator.add_variable("stateEstimate.x", "float")
         pos_estimator.add_variable("stateEstimate.y", "float")
         pos_estimator.add_variable("stateEstimate.z", "float")
@@ -337,7 +339,7 @@ class CrazyflieRobot:
         pos_estimator.data_received_cb.add_callback(self.pos_estimator_callback)
         pos_estimator.start()
 
-        vel_estimator = LogConfig(name="Velocity", period_in_ms=20)
+        vel_estimator = LogConfig(name="Velocity", period_in_ms=self.state_update_dt)
         vel_estimator.add_variable("stateEstimate.vx", "float")
         vel_estimator.add_variable("stateEstimate.vy", "float")
         vel_estimator.add_variable("stateEstimate.vz", "float")
@@ -346,7 +348,7 @@ class CrazyflieRobot:
         vel_estimator.data_received_cb.add_callback(self.vel_estimator_callback)
         vel_estimator.start()
 
-        attitude_estimator = LogConfig(name="Attitude", period_in_ms=20)
+        attitude_estimator = LogConfig(name="Attitude", period_in_ms=self.state_update_dt)
         attitude_estimator.add_variable("stabilizer.roll", "float")
         attitude_estimator.add_variable("stabilizer.pitch", "float")
         attitude_estimator.add_variable("stabilizer.yaw", "float")
@@ -361,7 +363,7 @@ class CrazyflieRobot:
         time.sleep(0.1)
         self.cf.param.set_value("kalman.resetEstimation", "0")
 
-        log_config = LogConfig(name="Kalman Variance", period_in_ms=20)
+        log_config = LogConfig(name="Kalman Variance", period_in_ms=self.state_update_dt)
         log_config.add_variable("kalman.varPX", "float")
         log_config.add_variable("kalman.varPY", "float")
         log_config.add_variable("kalman.varPZ", "float")
