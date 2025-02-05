@@ -21,9 +21,8 @@ setup(
             glob("launch/*launch.[pxy][yma]*"),
         ),
         (os.path.join("share", package_name, "config"), glob("config/*.yaml")),
-        (os.path.join("share", package_name, "bags/horizontal_circle"), glob("bags/horizontal_circle/*")),
-        (os.path.join("share", package_name, "bags/vertical_circle"), glob("bags/vertical_circle/*")),
-        (os.path.join("share", package_name, "bags/lemniscate"), glob("bags/lemniscate/*")),
+        *[(os.path.join("share", package_name, "bags/gazebo", subfolder), glob(f"bags/gazebo/{subfolder}/*")) 
+         for subfolder in os.listdir("bags/gazebo") if os.path.isdir(os.path.join("bags/gazebo", subfolder))],
     ],
     install_requires=["setuptools"],
     zip_safe=True,

@@ -65,7 +65,7 @@ class CrazyflieMPC(rclpy.node.Node):
         self.cmd_attitude_pub = self.create_publisher(
             Twist, f"/{cf_name}/cmd_attitude_setpoint", 10
         )
-        self.create_timer(1.0 / 100.0, self._cmd_callback)
+        self.create_timer(1.0 /60, self._cmd_callback)
 
         # * Services (act on all active crazyflies)
         self.takeoff_srv = self.create_service(TakeOff, "/mpc_takeoff", self._takeoff_callback)
@@ -141,7 +141,6 @@ class CrazyflieMPC(rclpy.node.Node):
             self.mpc_pub.publish
 
     def _state_callback(self, msg: CrazyflieState):
-        self.logger.info("Received state message \n")
         self.position = np.array([msg.position[0], msg.position[1], msg.position[2]])
         self.attitude = np.array(
             [
@@ -279,7 +278,7 @@ class CrazyflieMPC(rclpy.node.Node):
                 axis=1,
             )
         if self.flight_mode is FlightMode.TRAJECTORY:
-            yref = np.array([self.vertical_circle(t_mpc) for t_mpc in t_mpc_array]).T
+            yref = np.array([self.lemniscate(t_mpc) for t_mpc in t_mpc_array]).T
         return yref
 
     def thrust_to_pwm(self, collective_thrust: float) -> int:
@@ -307,7 +306,7 @@ class CrazyflieMPC(rclpy.node.Node):
 
     def lemniscate(self, t):
         a = 0.8
-        b = 0.4 * np.tanh(0.1 * t)
+        b = 1.0 * np.tanh(0.1 * t)
         pxr = self.phase_start_position[0] + a * np.sin(b * t)
         pyr = self.phase_start_position[1] + a * np.sin(b * t) * np.cos(b * t)
         pzr = self.phase_start_position[2]
@@ -318,7 +317,7 @@ class CrazyflieMPC(rclpy.node.Node):
     
     def circle(self, t):
         a = 1.0
-        omega = 0.75*np.tanh(0.1*t)
+        omega = 0.75 * np.tanh(0.3*t)
         pxr = self.phase_start_position[0] + a*np.cos(omega*t) - a
         pyr = self.phase_start_position[1] + a*np.sin(omega*t)
         pzr = self.phase_start_position[2]

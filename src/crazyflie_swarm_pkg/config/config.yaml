@@ -1,6 +1,6 @@
-state_publisher_rate: 100.0
+state_publisher_rate: 150.0
 velocity_publisher_rate: 10.0
-simulation: False
+simulation: True
 
 crazyflies:
   - name: cf_1
@@ -12,11 +12,11 @@ crazyflies:
     multiranger: True
     initial_position:
       x: 0.0
-      y: -1.0
+      y: 0.0
       z: 0.0
 
   - name: cf_2
-    active: True
+    active: False
     uri: radio://0/80/2M/E7E7E7E7E5
     sim_uri: udp://0.0.0.0:19851
     takeoff_height: 0.2
@@ -40,7 +40,7 @@ crazyflies:
       z: 0.0
 
   - name: cf_4
-    active: True
+    active: False
     uri: radio://0/80/2M/E7E7E7E7E7
     sim_uri: udp://0.0.0.0:19853
     takeoff_height: 0.3

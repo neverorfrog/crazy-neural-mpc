@@ -23,12 +23,13 @@ teleop = 'ros2 launch crazyflie_swarm_pkg teleop.launch.py'
 mpc = "ros2 launch crazyflie_mpc_pkg mpc.launch.py"
 data = "ros2 launch crazyflie_mpc_pkg data.launch.py"
 crazyswarm = "ros2 launch crazyflie launch.py backend:=cflib"
-record = "cd crazy_bag && ros2 bag record --all"
+record = "cd src/crazyflie_mpc_pkg/bags/gazebo && ros2 bag record --all"
+generate-data = "data_generation.sh -x 0.0 -y 0.0"
 
 # Services
 takeoff = 'ros2 service call /take_off crazyflie_swarm_interfaces/srv/TakeOff "{height: 0.35, duration: 5}"'
 land = 'ros2 service call /land crazyflie_swarm_interfaces/srv/Land "{duration: 3}"'
-mpc-takeoff = 'ros2 service call /mpc_takeoff crazyflie_swarm_interfaces/srv/TakeOff "{height: 0.35, duration: 2}"'
+mpc-takeoff = 'ros2 service call /mpc_takeoff crazyflie_swarm_interfaces/srv/TakeOff "{height: 0.3, duration: 2}"'
 mpc-land = 'ros2 service call /mpc_land crazyflie_swarm_interfaces/srv/Land "{duration: 3}"'
 mpc-hover = 'ros2 service call /mpc_hover std_srvs/Empty "{}"'
 mpc-traj = 'ros2 service call /mpc_traj std_srvs/Empty "{}"'
